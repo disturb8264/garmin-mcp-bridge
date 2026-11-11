@@ -8,9 +8,11 @@ Garmin Connect의 러닝, 사이클, 수영, 멀티스포츠 활동을 PostgreSQ
 ChatGPT ─ Secure MCP Tunnel ─ Garmin 컨테이너 ─ PostgreSQL
                               ├─ MCP 서버
                               └─ 수집 API ─ Garmin Connect
+
+내부 MCP 게이트웨이 ─ HTTP + 내부 토큰 ─ Garmin 컨테이너 ─ PostgreSQL
 ```
 
-MCP는 기본적으로 저장된 데이터를 읽습니다. `get_activities_by_date`는 요청한 날짜의 기록이 부족할 때만 내부 수집 API에 요청합니다. 터널, MCP 서버, 수집 API는 하나의 컨테이너에서 각각 별도 프로세스로 실행합니다. MCP의 DB 연결은 읽기 전용 계정을 사용하고 수집 API는 컨테이너 내부의 `127.0.0.1`에서만 수신합니다. 한 컨테이너에 두 DB 계정과 Garmin 인증 정보가 함께 있으므로, 컨테이너 단위의 권한 분리는 없습니다.
+MCP는 기본적으로 저장된 데이터를 읽습니다. `get_activities_by_date`는 요청한 날짜의 기록이 부족할 때만 내부 수집 API에 요청합니다. MCP 서버와 수집 API는 한 컨테이너에서 별도 프로세스로 실행하며, 터널은 선택 사항입니다. MCP의 DB 연결은 읽기 전용 계정을 사용하고 수집 API는 컨테이너 내부의 `127.0.0.1`에서만 수신합니다. 한 컨테이너에 두 DB 계정과 Garmin 인증 정보가 함께 있으므로, 컨테이너 단위의 권한 분리는 없습니다.
 
 지원 종목의 Garmin 하위 유형(실내 사이클, 오픈워터 수영 등)은 종목 계층에 따라 분류합니다. Garmin에서 제공하지 않는 랩이나 시계열 값은 비워 둡니다. 러닝 페이스는 초/km, 수영 페이스는 초/100m, 속도는 m/s, 거리는 m로 저장합니다.
 
@@ -39,9 +41,11 @@ bash scripts/create-mcp-token.sh
 | `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | 수집기의 PostgreSQL 쓰기 계정 |
 | `MCP_PGUSER`, `MCP_PGPASSWORD` | MCP 전용 PostgreSQL 읽기 계정 |
 | `PUID`, `PGID` | `data/tokens`와 두 내부 토큰 파일의 소유자 UID/GID |
-| `MCP_PORT` | NAS 호스트의 로컬 전용 MCP 포트. 기본값 `8765`; 이미 사용 중이면 변경 |
-| `GARMIN_IMAGE` | 선택 사항. 기본값은 Docker Hub에 게시된 `disturb8264/garmin-mcp-bridge:0.2.0` |
-| `TUNNEL_ID`, `CONTROL_PLANE_API_KEY` | ChatGPT 터널 연결 시 필요 |
+| `MCP_PORT` | NAS 호스트의 MCP 포트. 기본값 `8765`; 이미 사용 중이면 변경 |
+| `MCP_BIND_ADDRESS` | NAS 호스트의 바인딩 주소. 기본값 `127.0.0.1`; 별도 호스트의 내부 게이트웨이에서 접속할 때 NAS의 LAN 주소 지정 |
+| `TUNNEL_ENABLED` | 기본값 `true`; 내부 게이트웨이에 직접 연결할 때 `false` |
+| `GARMIN_IMAGE` | 선택 사항. 기본값은 Docker Hub의 `disturb8264/garmin-mcp-bridge:0.3.0` |
+| `TUNNEL_ID`, `CONTROL_PLANE_API_KEY` | 터널 모드에서만 필요 |
 
 DB 스키마는 수집기의 첫 저장 실행 때 자동 적용됩니다. 별도 DB 역할이 없다면, `PGDATABASE=garmin_running`으로 생성한 DB에 관리자 계정을 임시로 설정한 뒤 로컬 Python 환경에서 `scripts/setup_db_roles.py`를 **한 번만** 실행할 수 있습니다. 이 스크립트는 쓰기/읽기 역할을 생성하고 `.env`를 교체하며, 관리자 접속 정보는 Git에서 제외되는 `data/db_admin.env`에 보관합니다. 다른 DB 이름이나 기존 역할을 사용할 때는 PostgreSQL에서 쓰기 계정의 테이블 생성·수정 권한과 읽기 계정의 `SELECT` 권한을 직접 준비하세요. 새 테이블 `garmin_date_coverage`에도 읽기 권한이 필요합니다.
 
@@ -63,14 +67,36 @@ docker compose ps
 docker compose exec -T garmin python -m app.combined_healthcheck
 ```
 
-`sh scripts/build-image.sh`는 같은 빌드 결과에 Docker Hub와 GHCR의 `0.2.0` 태그를 붙입니다. 현재 Docker Hub에 `0.2.0`이 게시되어 있습니다. NAS에서는 이미지를 내려받은 뒤 컨테이너를 교체하세요:
+`sh scripts/build-image.sh`는 같은 빌드 결과에 Docker Hub와 GHCR의 `0.3.0` 태그를 붙입니다. NAS에서는 이미지를 내려받은 뒤 컨테이너를 교체하세요:
 
 ```sh
-docker pull disturb8264/garmin-mcp-bridge:0.2.0
+docker pull disturb8264/garmin-mcp-bridge:0.3.0
 docker compose up -d --force-recreate
 ```
 
-Compose는 로컬 이미지만 사용하며 이미지를 직접 빌드하거나 내려받지 않습니다. 코드를 변경해 로컬에서 실행하려면 빌드 스크립트를 다시 실행한 뒤 컨테이너를 교체하세요. 마지막 확인 명령이 성공하면 MCP 서버와 터널이 준비된 상태입니다. MCP 포트는 NAS 호스트의 `127.0.0.1:${MCP_PORT:-8765}`에만 바인딩됩니다. 터널 클라이언트는 `ghcr.io/openai/tunnel-client:v0.0.20`에서 이미지 빌드 시 가져옵니다.
+Compose는 로컬 이미지만 사용하며 이미지를 직접 빌드하거나 내려받지 않습니다. 코드를 변경해 로컬에서 실행하려면 빌드 스크립트를 다시 실행한 뒤 컨테이너를 교체하세요. 마지막 확인 명령이 성공하면 MCP 서버와 활성화한 경우 터널이 준비된 상태입니다. 기본 MCP 포트는 NAS 호스트의 `127.0.0.1:${MCP_PORT:-8765}`에 바인딩됩니다. 터널 클라이언트는 `ghcr.io/openai/tunnel-client:v0.0.20`에서 이미지 빌드 시 가져옵니다.
+
+## 터널 없는 내부 HTTP MCP 서버
+
+Garmin MCP를 NAS 내부 게이트웨이의 하위 서버로 등록할 때는 `.env`에서 터널을 끄고 MCP 포트를 게이트웨이가 접근할 수 있는 주소에 바인딩합니다. 기존 `data/mcp_internal_token` 파일과 DB·Garmin 설정은 그대로 사용합니다.
+
+```dotenv
+TUNNEL_ENABLED=false
+MCP_BIND_ADDRESS=<NAS_LAN_IP>
+MCP_PORT=8765
+```
+
+`MCP_BIND_ADDRESS`에는 NAS의 실제 LAN IP를 입력합니다. 게이트웨이가 NAS 호스트에서 직접 실행한다면 기본값 `127.0.0.1`을 유지해도 됩니다. 게이트웨이가 별도 컨테이너 또는 다른 호스트라면 그 환경에서 접근 가능한 주소를 사용하세요. Compose 프로젝트 디렉터리에서 실행합니다:
+
+```sh
+docker pull disturb8264/garmin-mcp-bridge:0.3.0
+docker compose up -d --force-recreate
+docker compose exec -T garmin python -m app.combined_healthcheck
+```
+
+게이트웨이에 등록할 MCP URL은 `http://<NAS_LAN_IP>:8765/mcp`입니다. 게이트웨이는 모든 MCP 요청에 `X-MCP-Internal-Token` 헤더로 `data/mcp_internal_token`의 값을 전달해야 합니다. 인증 없는 요청의 HTTP `401`은 정상입니다. 토큰 값을 로그·설정 저장소·명령줄 인자에 노출하지 마세요. 수집 API 포트 `8766`은 계속 컨테이너 내부의 `127.0.0.1`에서만 수신합니다.
+
+이 HTTP 설정은 신뢰하는 내부 네트워크용입니다. 인터넷에 직접 공개하려면 HTTPS와 클라이언트별 인증을 별도로 구성하세요. ChatGPT에 직접 연결할 때는 터널 모드를 유지하거나, 공개 HTTPS와 ChatGPT가 지원하는 인증 방식을 갖춘 별도 진입점을 사용하세요.
 
 Synology에서는 프로젝트 디렉터리와 `data/tokens`를 영속적으로 유지하세요. NAS의 UID/GID에 맞게 `PUID`, `PGID`를 지정해야 토큰 파일을 읽을 수 있습니다. 운동 직후 조회는 날짜 도구가 필요할 때 Garmin에서 수집합니다. 정기 동기화가 필요하면 NAS 작업 스케줄러에서 `docker compose run --rm --entrypoint python garmin -m app.main --mode sync`를 실행하세요.
 
@@ -128,14 +154,14 @@ Container Manager에서 직접 실행할 때 `MCP_PORT`는 **컨테이너 내부
 
 `get_segment_best_efforts`는 완료된 캐시만 순위로 보여줍니다. `indexing_required`가 나오면 `refresh_segment`를 반복하거나 아래 스크립트로 저장된 활동을 배치 분석하세요. 이 작업은 Garmin에 요청하지 않습니다. 새 활동이 저장되면 해당 활동의 캐시가 자동으로 오래된 것으로 표시됩니다. 마이그레이션 `006_segments.sql`은 구간 정의, 활동별 분석 상태, 통과 기록을 저장합니다.
 
-## 0.2.0 배포 및 저장 데이터 보강
+## 0.2.0 이후 배포 및 저장 데이터 보강
 
-과거 수집이 끝난 뒤 다음 순서로 진행하세요. 모든 스크립트는 수집 실행 중이면 DB 변경을 거절합니다. 운영 DB를 백업하고 Docker Hub의 `0.2.0` 이미지를 내려받으세요. Compose의 `pull_policy: never`는 자동 다운로드를 하지 않습니다. GHCR 태그는 빌드 스크립트에서 로컬로 생성하지만 별도로 푸시해야 사용할 수 있습니다.
+과거 수집이 끝난 뒤 다음 순서로 진행하세요. 모든 스크립트는 수집 실행 중이면 DB 변경을 거절합니다. 운영 DB를 백업하고 Docker Hub의 이미지를 내려받으세요. Compose의 `pull_policy: never`는 자동 다운로드를 하지 않습니다. GHCR 태그는 빌드 스크립트에서 로컬로 생성하지만 별도로 푸시해야 사용할 수 있습니다.
 
 NAS의 Compose 프로젝트에서는 백필이 끝난 뒤 마이그레이션과 저장 데이터 보강을 실행하고 컨테이너를 교체합니다:
 
 ```sh
-docker pull disturb8264/garmin-mcp-bridge:0.2.0
+docker pull disturb8264/garmin-mcp-bridge:0.3.0
 docker compose run --rm --entrypoint python garmin scripts/apply-migrations.py
 docker compose run --rm --entrypoint python garmin scripts/enrich-saved-gps.py --apply
 docker compose run --rm --entrypoint python garmin scripts/enrich-saved-swim.py --apply
