@@ -20,3 +20,4 @@ __pycache__/
 *.dump
 *.backup
 *.sqlite*
+REQUIREMENTS.md
