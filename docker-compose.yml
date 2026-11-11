@@ -1,0 +1,36 @@
+services:
+  garmin:
+    image: disturb8264/garmin-mcp-bridge:latest
+    pull_policy: never
+    user: "${PUID:-1000}:${PGID:-1000}"
+    env_file: .env
+    environment:
+      GARMIN_TOKEN_DIR: /app/data/tokens
+      COLLECTOR_TOKEN_FILE: /run/secrets/collector_internal_token
+      COLLECTOR_API_HOST: 127.0.0.1
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8765
+      MCP_TOKEN_FILE: /run/secrets/mcp_internal_token
+      MCP_PGHOST: ${PGHOST:-}
+      MCP_PGPORT: ${PGPORT:-5432}
+      MCP_PGDATABASE: ${PGDATABASE:-}
+      MCP_COLLECTOR_URL: http://127.0.0.1:8766/collect-range
+      MCP_COLLECTOR_TOKEN_FILE: /run/secrets/collector_internal_token
+      CONTROL_PLANE_TUNNEL_ID: ${TUNNEL_ID:-}
+      MCP_SERVER_URL: http://127.0.0.1:8765/mcp
+      MCP_EXTRA_HEADERS: "X-MCP-Internal-Token: file:/run/secrets/mcp_internal_token"
+      MCP_DISCOVERY_EXTRA_HEADERS: "X-MCP-Internal-Token: file:/run/secrets/mcp_internal_token"
+      TZ: ${TZ:-Asia/Seoul}
+    volumes:
+      - ./data/tokens:/app/data/tokens
+      - ./data/mcp_internal_token:/run/secrets/mcp_internal_token:ro
+      - ./data/collector_internal_token:/run/secrets/collector_internal_token:ro
+    ports:
+      - "127.0.0.1:${MCP_PORT:-8765}:8765"
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.combined_healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped

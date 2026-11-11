@@ -1,0 +1,5 @@
+garminconnect==0.3.20
+curl_cffi
+python-dotenv
+psycopg[binary]>=3.2,<4
+mcp==2.3.0
