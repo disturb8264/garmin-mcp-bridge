@@ -1,4 +1,5 @@
 import unittest
+import os
 from unittest.mock import AsyncMock, patch
 
 import httpx2
@@ -6,6 +7,7 @@ import httpx2
 from app.date_query import validate_range
 from app.date_tool import get_activities_by_date
 from app.collect_range_worker import run as run_worker
+from app.config import load_config
 from app.garmin_client import GarminAuthError
 from garminconnect import GarminConnectConnectionError
 
@@ -103,6 +105,46 @@ class RangeValidationTests(unittest.TestCase):
 
 
 class WorkerErrorTests(unittest.TestCase):
+    def test_collector_reuses_mcp_database_settings_when_writer_settings_absent(self):
+        settings = {
+            "MCP_PGHOST": "database", "MCP_PGPORT": "5433",
+            "MCP_PGDATABASE": "running", "MCP_PGUSER": "shared_user",
+            "MCP_PGPASSWORD": "test-password",
+        }
+        with patch.dict(os.environ, settings, clear=True), patch("app.config.load_dotenv"):
+            config = load_config()
+        self.assertTrue(config.db_ready)
+        self.assertEqual((config.pg_host, config.pg_port, config.pg_database, config.pg_user),
+                         ("database", 5433, "running", "shared_user"))
+        self.assertEqual(config.pg_password, "test-password")
+
+    def test_collector_prefers_writer_credentials_over_mcp_reader(self):
+        settings = {
+            "PGHOST": "database", "PGDATABASE": "running",
+            "PGUSER": "writer", "PGPASSWORD": "writer-password",
+            "MCP_PGUSER": "reader", "MCP_PGPASSWORD": "reader-password",
+        }
+        with patch.dict(os.environ, settings, clear=True), patch("app.config.load_dotenv"):
+            config = load_config()
+        self.assertEqual((config.pg_user, config.pg_password), ("writer", "writer-password"))
+
+    def test_worker_collects_with_existing_mcp_database_settings(self):
+        settings = {
+            "MCP_PGHOST": "database", "MCP_PGDATABASE": "running",
+            "MCP_PGUSER": "shared_user", "MCP_PGPASSWORD": "test-password",
+        }
+        with patch.dict(os.environ, settings, clear=True), \
+             patch("app.config.load_dotenv"), \
+             patch("app.collect_range_worker.GarminReader"), \
+             patch("app.collect_range_worker.database.connect") as connection, \
+             patch("app.collect_range_worker.database.ensure_schema"), \
+             patch("app.collect_range_worker.database.mark_date_coverage"), \
+             patch("app.collect_range_worker.collect", return_value=(1, 1, 0)):
+            connection.return_value.__enter__.return_value = connection.return_value
+            result = run_worker("2025-10-29", "2025-10-29")
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(connection.call_args.args[0].pg_user, "shared_user")
+
     def test_authentication_error_has_distinct_status(self):
         with patch("app.collect_range_worker.GarminReader") as reader:
             reader.return_value.login.side_effect = GarminAuthError("private details")

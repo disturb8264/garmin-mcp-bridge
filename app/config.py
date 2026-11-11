@@ -34,6 +34,10 @@ class Config:
 
 def load_config() -> Config:
     load_dotenv(ROOT / ".env")
+
+    def db_setting(name: str, fallback: str) -> str:
+        return os.getenv(name) or os.getenv(fallback, "")
+
     token_dir = Path(os.getenv("GARMIN_TOKEN_DIR", "./data/tokens")).expanduser()
     if not token_dir.is_absolute():
         token_dir = ROOT / token_dir
@@ -44,11 +48,11 @@ def load_config() -> Config:
         email=os.getenv("GARMIN_EMAIL", "").strip(),
         password=os.getenv("GARMIN_PASSWORD", ""),
         token_dir=token_dir,
-        pg_host=os.getenv("PGHOST", "").strip(),
-        pg_port=int(os.getenv("PGPORT", "5432")),
-        pg_database=os.getenv("PGDATABASE", "").strip(),
-        pg_user=os.getenv("PGUSER", "").strip(),
-        pg_password=os.getenv("PGPASSWORD", ""),
+        pg_host=db_setting("PGHOST", "MCP_PGHOST").strip(),
+        pg_port=int(db_setting("PGPORT", "MCP_PGPORT") or "5432"),
+        pg_database=db_setting("PGDATABASE", "MCP_PGDATABASE").strip(),
+        pg_user=db_setting("PGUSER", "MCP_PGUSER").strip(),
+        pg_password=db_setting("PGPASSWORD", "MCP_PGPASSWORD"),
         lookback_days=lookback_days,
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
     )

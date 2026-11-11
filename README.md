@@ -94,7 +94,7 @@ chmod 600 data/collector_internal_token data/mcp_internal_token
 
 Container Manager에서 Docker 이미지를 직접 실행하면 Compose의 `user: "${PUID}:${PGID}"` 설정이 적용되지 않습니다. 이 이미지의 기본 UID/GID는 `1000:1000`입니다. 토큰 파일을 `600`으로 바꾼 뒤 `Permission denied`가 나오면 `id -u disturb`, `id -g disturb`와 `docker inspect <컨테이너명> --format '{{.Config.User}}'`를 비교하세요. 직접 실행할 때는 컨테이너의 실행 사용자 UID/GID를 토큰 파일 소유자와 같게 지정하거나, Compose 프로젝트로 배포해 `.env`의 `PUID`/`PGID`를 사용하세요. 환경 변수만 추가해도 직접 실행한 컨테이너의 실행 UID/GID는 바뀌지 않습니다.
 
-이미지를 직접 실행할 때는 NAS의 `.env` 파일도 자동으로 컨테이너 환경에 전달되지 않습니다. 날짜 조회 중 `Collector database is not configured`가 나오면 컨테이너 환경에 `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`가 모두 설정됐는지 확인하세요. 이 값들은 수집기의 DB 쓰기 계정이며, MCP 읽기 계정의 `MCP_PGUSER`/`MCP_PGPASSWORD`와 별도입니다. 비밀번호 값은 로그나 터미널에 출력하지 마세요.
+이미지를 직접 실행할 때는 NAS의 `.env` 파일도 자동으로 컨테이너 환경에 전달되지 않습니다. 이 변경을 적용한 이미지에서 Collector의 `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`가 비어 있으면 대응하는 `MCP_PG*` 값을 사용합니다. 명시한 `PG*` 값은 우선합니다. MCP 계정이 읽기 전용이라면 날짜 수집 결과를 저장할 수 없으므로 컨테이너 환경에 `PGUSER`와 `PGPASSWORD`로 쓰기 계정을 별도로 지정하세요. 비밀번호 값은 로그나 터미널에 출력하지 마세요.
 
 Container Manager에서 직접 실행할 때 `MCP_PORT`는 **컨테이너 내부 포트**입니다. 현재 배포 이미지에서는 `8765`로 설정하고, NAS 호스트 포트가 `18765`라면 포트 매핑을 `127.0.0.1:18765 → 컨테이너 8765`로 지정하세요. `MCP_SERVER_URL`도 `http://127.0.0.1:8765/mcp`여야 합니다. Compose에서는 `.env`의 `MCP_PORT`가 호스트 포트이고 컨테이너 내부 포트는 `8765`로 고정됩니다.
 
