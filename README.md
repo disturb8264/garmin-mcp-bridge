@@ -40,7 +40,7 @@ bash scripts/create-mcp-token.sh
 | `MCP_PGUSER`, `MCP_PGPASSWORD` | MCP 전용 PostgreSQL 읽기 계정 |
 | `PUID`, `PGID` | `data/tokens`와 두 내부 토큰 파일의 소유자 UID/GID |
 | `MCP_PORT` | NAS 호스트의 로컬 전용 MCP 포트. 기본값 `8765`; 이미 사용 중이면 변경 |
-| `GARMIN_IMAGE` | 선택 사항. 기본값은 Docker Hub의 `disturb8264/garmin-mcp-bridge:0.1.0`; GHCR 이미지는 `ghcr.io/disturb8264/garmin-mcp-bridge:0.1.0` |
+| `GARMIN_IMAGE` | 선택 사항. 기본값은 Docker Hub의 `disturb8264/garmin-mcp-bridge:0.2.0`; GHCR 이미지는 `ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0` |
 | `TUNNEL_ID`, `CONTROL_PLANE_API_KEY` | ChatGPT 터널 연결 시 필요 |
 
 DB 스키마는 수집기의 첫 저장 실행 때 자동 적용됩니다. 별도 DB 역할이 없다면, `PGDATABASE=garmin_running`으로 생성한 DB에 관리자 계정을 임시로 설정한 뒤 로컬 Python 환경에서 `scripts/setup_db_roles.py`를 **한 번만** 실행할 수 있습니다. 이 스크립트는 쓰기/읽기 역할을 생성하고 `.env`를 교체하며, 관리자 접속 정보는 Git에서 제외되는 `data/db_admin.env`에 보관합니다. 다른 DB 이름이나 기존 역할을 사용할 때는 PostgreSQL에서 쓰기 계정의 테이블 생성·수정 권한과 읽기 계정의 `SELECT` 권한을 직접 준비하세요. 새 테이블 `garmin_date_coverage`에도 읽기 권한이 필요합니다.
@@ -63,12 +63,12 @@ docker compose ps
 docker compose exec -T garmin python -m app.combined_healthcheck
 ```
 
-`sh scripts/build-image.sh`는 같은 빌드 결과에 Docker Hub와 GHCR의 `0.1.0` 태그를 붙입니다. 이미 두 레지스트리에 올린 이미지를 NAS에서 사용할 때는 선택한 이미지를 먼저 내려받으세요:
+`sh scripts/build-image.sh`는 같은 빌드 결과에 Docker Hub와 GHCR의 `0.2.0` 태그를 붙입니다. 새 버전을 레지스트리에 푸시한 뒤 NAS에서 선택한 이미지를 내려받으세요:
 
 ```sh
-docker pull disturb8264/garmin-mcp-bridge:0.1.0
-# GHCR을 사용할 경우 .env에 GARMIN_IMAGE=ghcr.io/disturb8264/garmin-mcp-bridge:0.1.0을 설정하고:
-docker pull ghcr.io/disturb8264/garmin-mcp-bridge:0.1.0
+docker pull disturb8264/garmin-mcp-bridge:0.2.0
+# GHCR을 사용할 경우 .env에 GARMIN_IMAGE=ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0을 설정하고:
+docker pull ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0
 docker compose up -d --force-recreate
 ```
 
@@ -108,6 +108,55 @@ Container Manager에서 직접 실행할 때 `MCP_PORT`는 **컨테이너 내부
 | `get_activity_samples` | Activity ID의 시계열을 최대 200건씩 조회 |
 | `get_sync_status` | 마지막 수집 이력과 최신 저장 활동 조회 |
 | `get_activities_by_date` | 현지 날짜 범위 조회, 필요 시 Garmin 수집 후 저장 |
+| `search_activities` | 저장된 전체 이력에서 종목·날짜·이름·거리·시간으로 검색, 정렬·페이지네이션 |
+| `get_sport_history` | 종목별 최초·최근 저장 기록, 누적 거리·시간, 최고 평균 기록, 연·월·주 집계 |
+| `get_sport_progress` | 종목별 추이와 결측 건수, 러닝의 비슷한 페이스·거리 구간 심박 비교 |
+| `get_activity_route` | 저장된 GPS 경로를 최대 1,000점으로 축약해 조회 |
+| `get_segment_best_efforts` | 사용자 정의 구간의 GPS 통과 기록 중 빠른 순위 조회 |
+| `register_segment` | 사용자가 지정한 시작점·종료점·선택 경유지로 구간 등록 |
+| `refresh_segment` | 저장된 활동의 구간 통과 기록을 제한된 건수씩 분석·캐시 |
+
+검색·통계 도구는 PostgreSQL의 저장 기록만 읽으며 Garmin에 추가 요청하지 않습니다. 검색은 한 페이지 최대 100건, 기간별 집계는 최대 120개 기간씩 반환하며 `next_period_offset`으로 다음 페이지를 조회합니다. 집계의 `first_recorded_date`는 **DB에 저장된 최초 기록**이며 Garmin 계정에서 운동을 처음 시작한 날이라고 단정할 수 없습니다. `coverage`에는 해당 조회 기간 중 수집 완료로 확인된 날짜 수와 전체 날짜 수가 포함됩니다. 백필이 완료되기 전에는 부분 결과가 반환될 수 있습니다. 기록 최고값은 활동 전체의 평균 페이스·속도 기준이며 100m 분할 기록이나 코스 최고 기록이 아닙니다.
+
+러닝·수영 페이스는 초/km·초/100m의 단순 평균과 거리 가중 평균을 따로 반환합니다. 속도는 활동 평균의 단순 평균과 거리/시간으로 합산한 속도를 따로 반환합니다. 심박·파워·케이던스 등의 `*_count`는 값이 있는 활동 수입니다. 러닝 심박 비교는 페이스 15초/km 구간과 거리 구간이 같고 비교 양쪽에 각각 2건 이상 있을 때만 제시합니다. 새 검색 인덱스는 마이그레이션 `004_activity_analysis_indexes.sql`에 있으며 다음 스키마 적용 시 생성됩니다. 별도 환경변수는 필요하지 않습니다.
+
+수영 100m 기록은 실제로 저장된 약 100m 랩이 있을 때만 `best_measured_100m_lap`에 반환합니다. 활동 전체 평균을 100m 최고 기록으로 환산하지 않습니다. 수영 SWOLF·스트로크는 원본 필드가 있는 경우에만 저장하며, SWOLF 추이는 확인된 수영장 길이별로 구분합니다. `poolLengthUnit`이 없거나 알 수 없으면 길이를 미터로 추정하지 않습니다.
+
+## GPS와 사용자 정의 구간
+
+기존 샘플의 `raw_json`에 `directLatitude`·`directLongitude`가 있다면 `get_activity_route`가 마이그레이션 이전에도 읽을 수 있습니다. GPS가 없는 활동은 `no_gps_data`, 시계열 자체가 저장되지 않은 활동은 `not_collected`를 반환합니다. 마이그레이션 `005_route_swim_metrics.sql`은 GPS와 선택 수영 지표의 전용 컬럼만 추가하고 기존 시계열을 삭제하지 않습니다. 새 수집은 샘플을 Activity ID와 순번으로 갱신하며, 기존 필드에 값이 있고 새 응답에 값이 빠졌으면 기존 값을 유지합니다.
+
+`register_segment`에는 이름, 러닝/사이클 종목, 시작·종료 위도·경도, 허용 반경(5~200m), 선택 경유지 최대 8개를 입력합니다. 남산 등 실제 코스 좌표는 사용자가 정의해야 합니다. 시작점 밖에서 안으로 진입한 뒤 경유지와 종료점을 정해진 순서로 통과해야 하며, GPS가 끊기거나 비정상 점프가 발생한 구간과 끝나지 않은 통과는 제외합니다. 동일 활동의 반복 통과는 각각 기록합니다. 시작·종료 시각은 GPS 샘플 타임스탬프이므로 샘플링 간격만큼의 오차가 있을 수 있습니다. 평균 심박·파워와 상승 고도는 해당 샘플의 요약값입니다. PostGIS는 필요하지 않습니다.
+
+`get_segment_best_efforts`는 완료된 캐시만 순위로 보여줍니다. `indexing_required`가 나오면 `refresh_segment`를 반복하거나 아래 스크립트로 저장된 활동을 배치 분석하세요. 이 작업은 Garmin에 요청하지 않습니다. 새 활동이 저장되면 해당 활동의 캐시가 자동으로 오래된 것으로 표시됩니다. 마이그레이션 `006_segments.sql`은 구간 정의, 활동별 분석 상태, 통과 기록을 저장합니다.
+
+## 0.2.0 배포 및 저장 데이터 보강
+
+현재 실행 중인 과거 수집이 끝난 뒤 다음 순서로 진행하세요. 모든 스크립트는 수집 실행 중이면 DB 변경을 거절합니다. 운영 DB 백업 후 새 `0.2.0` 이미지를 빌드·푸시하고 NAS에서 선택한 이미지를 내려받으세요. Compose의 `pull_policy: never`는 자동 다운로드를 하지 않습니다.
+
+```sh
+sh scripts/build-image.sh
+docker push disturb8264/garmin-mcp-bridge:0.2.0
+docker push ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0
+```
+
+NAS의 Compose 프로젝트에서는 백필이 끝난 뒤 마이그레이션과 저장 데이터 보강을 실행하고 컨테이너를 교체합니다:
+
+```sh
+docker pull disturb8264/garmin-mcp-bridge:0.2.0
+docker compose run --rm --entrypoint python garmin scripts/apply-migrations.py
+docker compose run --rm --entrypoint python garmin scripts/enrich-saved-gps.py --apply
+docker compose run --rm --entrypoint python garmin scripts/enrich-saved-swim.py --apply
+docker compose up -d --force-recreate
+```
+
+GHCR을 사용하면 `.env`의 `GARMIN_IMAGE`를 `ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0`으로 지정하고 해당 이미지를 내려받으세요. Container Manager에서 이미지를 직접 실행하는 경우, 동일한 DB 쓰기 환경변수가 설정된 새 컨테이너에서 `python scripts/apply-migrations.py`와 두 보강 스크립트를 실행할 수 있습니다. 읽기 전용 MCP 계정을 별도로 만들었다면 새 `garmin_segments`, `garmin_segment_scans`, `garmin_segment_efforts` 테이블의 `SELECT` 권한도 확인하세요. 새 환경변수는 없습니다.
+
+구간을 등록한 다음에는 반환된 `segment_id`로 다음 명령을 실행할 수 있습니다:
+
+```sh
+docker compose exec -T garmin python scripts/index-segment.py <segment_id>
+```
 
 날짜 도구의 입력은 `start_date`(필수, `YYYY-MM-DD`), `end_date`(선택, 기본값 시작일), `sport`(기본값 `all`; `running`, `cycling`, `swimming`, `multisport` 중 선택)입니다. 시작일과 종료일을 모두 포함하며 최대 **31일**입니다. 비교 기준은 Garmin 활동의 `start_local` 날짜입니다.
 

@@ -9,6 +9,7 @@ RUN groupadd --gid 1000 collector && useradd --uid 1000 --gid collector --home /
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
+COPY scripts ./scripts
 COPY sql ./sql
 COPY --from=tunnel /usr/bin/tunnel-client /usr/bin/tunnel-client
 RUN mkdir -p /app/data/tokens && chown -R collector:collector /app/data

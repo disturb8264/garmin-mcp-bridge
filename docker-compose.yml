@@ -1,6 +1,6 @@
 services:
   garmin:
-    image: ${GARMIN_IMAGE:-disturb8264/garmin-mcp-bridge:0.1.0}
+    image: ${GARMIN_IMAGE:-disturb8264/garmin-mcp-bridge:0.2.0}
     pull_policy: never
     user: "${PUID:-1000}:${PGID:-1000}"
     env_file: .env

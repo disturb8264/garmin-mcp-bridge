@@ -17,10 +17,10 @@ class MCPToolTests(unittest.IsolatedAsyncioTestCase):
             listed = await client.list_tools()
             self.assertEqual(
                 {tool.name for tool in listed.tools},
-                {"list_activities", "get_activity", "get_activity_laps", "get_activity_samples", "get_sync_status", "get_activities_by_date"},
+                {"list_activities", "get_activity", "get_activity_laps", "get_activity_samples", "get_sync_status", "get_activities_by_date", "search_activities", "get_sport_history", "get_sport_progress", "get_activity_route", "get_segment_best_efforts", "register_segment", "refresh_segment"},
             )
             for tool in listed.tools:
-                self.assertEqual(tool.annotations.read_only_hint, tool.name != "get_activities_by_date")
+                self.assertEqual(tool.annotations.read_only_hint, tool.name not in {"get_activities_by_date", "register_segment", "refresh_segment"})
                 self.assertEqual(tool.annotations.open_world_hint, tool.name == "get_activities_by_date")
             with patch("app.mcp_server.mcp_data.list_activities", return_value={"activities": [{"activity_id": 1}], "count": 1}):
                 result = await client.call_tool("list_activities", {"limit": 1, "sport": "cycling"})

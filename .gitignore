@@ -21,3 +21,4 @@ __pycache__/
 *.backup
 *.sqlite*
 REQUIREMENTS.md
+handoff.md

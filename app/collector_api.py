@@ -15,6 +15,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from app.date_query import validate_range
+from app import segment_store
 
 
 WORKER_TIMEOUT_SECONDS = 80
@@ -34,9 +35,12 @@ def load_token() -> str:
 def create_app(token: str | None = None) -> Starlette:
     expected = (token or load_token()).encode("ascii")
 
-    async def collect_range(request: Request):
+    def authorized(request: Request) -> bool:
         supplied = request.headers.get("X-Collector-Internal-Token", "").encode("ascii", "ignore")
-        if not hmac.compare_digest(supplied, expected):
+        return hmac.compare_digest(supplied, expected)
+
+    async def collect_range(request: Request):
+        if not authorized(request):
             return JSONResponse({"status": "unauthorized"}, status_code=401)
         try:
             body = await request.json()
@@ -66,7 +70,42 @@ def create_app(token: str | None = None) -> Starlette:
             return JSONResponse({"status": "api_error", "message": "Collector worker failed"})
         return JSONResponse(result)
 
-    return Starlette(routes=[Route("/collect-range", collect_range, methods=["POST"])])
+    async def register_segment(request: Request):
+        if not authorized(request):
+            return JSONResponse({"status": "unauthorized"}, status_code=401)
+        try:
+            body = await request.json()
+            result = await asyncio.to_thread(
+                segment_store.register_segment,
+                body["name"], body["sport"], body["start_latitude"],
+                body["start_longitude"], body["end_latitude"], body["end_longitude"],
+                body.get("radius_m", 30), body.get("waypoints"),
+            )
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return JSONResponse({"status": "invalid_request"}, status_code=400)
+        except Exception:
+            return JSONResponse({"status": "database_error", "message": "Segment registration failed"})
+        return JSONResponse(result)
+
+    async def refresh_segment(request: Request):
+        if not authorized(request):
+            return JSONResponse({"status": "unauthorized"}, status_code=401)
+        try:
+            body = await request.json()
+            result = await asyncio.to_thread(
+                segment_store.refresh_segment, body["segment_id"], body.get("batch_size", 10)
+            )
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return JSONResponse({"status": "invalid_request"}, status_code=400)
+        except Exception:
+            return JSONResponse({"status": "database_error", "message": "Segment indexing failed"})
+        return JSONResponse(result)
+
+    return Starlette(routes=[
+        Route("/collect-range", collect_range, methods=["POST"]),
+        Route("/register-segment", register_segment, methods=["POST"]),
+        Route("/refresh-segment", refresh_segment, methods=["POST"]),
+    ])
 
 
 def main() -> None:

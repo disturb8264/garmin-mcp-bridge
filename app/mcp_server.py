@@ -9,25 +9,29 @@ from typing import Annotated, Any, Literal
 
 import uvicorn
 import psycopg
+import httpx2 as httpx
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from starlette.responses import JSONResponse
 
-from app import date_tool, mcp_data
+from app import date_tool, mcp_analysis, mcp_data, mcp_route, segment_store, segment_tool
 from app.config import ROOT
 
 
 READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 COLLECTS_DATA = ToolAnnotations(readOnlyHint=False, openWorldHint=True)
+WRITES_DB = ToolAnnotations(readOnlyHint=False, openWorldHint=False)
 mcp = MCPServer(
     "Garmin Activities",
     instructions=(
-        "Read-only access to saved Garmin running, cycling, swimming and multisport activities. "
+        "Search saved Garmin running, cycling, swimming and multisport activities in PostgreSQL. "
         "Use get_sync_status to check freshness when a user asks about a just-finished activity. "
         "Distances are meters, durations and paces are seconds (per km for running, per 100m for swimming), and speeds are m/s. "
         "get_activities_by_date checks saved data first and can collect missing dates from Garmin."
+        " Search and history tools use only saved PostgreSQL data; check coverage before treating a first record or trend as complete."
+        " Segment registration and indexing change only the local database and do not call Garmin."
     ),
 )
 
@@ -76,6 +80,109 @@ def get_activity_samples(
 def get_sync_status() -> dict[str, Any]:
     """Get the last collector run and newest saved activity to check data freshness."""
     return _read_query(mcp_data.sync_status)
+
+
+@mcp.tool(annotations=READ_ONLY, structured_output=True)
+def search_activities(
+    sport: Literal["all", "running", "cycling", "swimming", "multisport"] = "all",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    name: str | None = None,
+    min_distance_m: float | None = None,
+    max_distance_m: float | None = None,
+    min_duration_s: float | None = None,
+    max_duration_s: float | None = None,
+    sort: Literal["newest", "oldest", "distance", "duration"] = "newest",
+    offset: Annotated[int, Field(ge=0, le=100000)] = 0,
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
+) -> dict[str, Any]:
+    """Search saved activities with filters, sort order, and bounded pages; never calls Garmin."""
+    return _read_query(mcp_analysis.search_activities, sport, start_date, end_date, name,
+                       min_distance_m, max_distance_m, min_duration_s, max_duration_s,
+                       sort, offset, limit)
+
+
+@mcp.tool(annotations=READ_ONLY, structured_output=True)
+def get_sport_history(
+    sport: Literal["all", "running", "cycling", "swimming", "multisport"],
+    start_date: str | None = None,
+    end_date: str | None = None,
+    group_by: Literal["year", "month", "week"] = "year",
+    period_offset: Annotated[int, Field(ge=0, le=100000)] = 0,
+    period_limit: Annotated[int, Field(ge=1, le=120)] = 120,
+) -> dict[str, Any]:
+    """Summarize saved sport history in PostgreSQL, including first recorded date and grouped totals."""
+    return _read_query(mcp_analysis.get_sport_history, sport, start_date, end_date,
+                       group_by, period_offset, period_limit)
+
+
+@mcp.tool(annotations=READ_ONLY, structured_output=True)
+def get_sport_progress(
+    sport: Literal["all", "running", "cycling", "swimming", "multisport"],
+    start_date: str | None = None,
+    end_date: str | None = None,
+    group_by: Literal["year", "month", "week"] = "month",
+    period_offset: Annotated[int, Field(ge=0, le=100000)] = 0,
+    period_limit: Annotated[int, Field(ge=1, le=120)] = 120,
+) -> dict[str, Any]:
+    """Analyze saved activity trends with arithmetic and distance-weighted metrics and missing-data counts."""
+    return _read_query(mcp_analysis.get_sport_progress, sport, start_date, end_date,
+                       group_by, period_offset, period_limit)
+
+
+@mcp.tool(annotations=READ_ONLY, structured_output=True)
+def get_activity_route(
+    activity_id: Annotated[int, Field(gt=0)],
+    sample_interval: Annotated[int | None, Field(ge=1, le=10000)] = None,
+    max_points: Annotated[int, Field(ge=2, le=1000)] = 500,
+) -> dict[str, Any]:
+    """Get a bounded page of saved GPS points for an activity; reports missing GPS explicitly."""
+    return _read_query(mcp_route.get_activity_route, activity_id, sample_interval, max_points)
+
+
+@mcp.tool(annotations=READ_ONLY, structured_output=True)
+def get_segment_best_efforts(
+    sport: Literal["running", "cycling"],
+    segment_id: int | None = None,
+    segment_name: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    limit: Annotated[int, Field(ge=1, le=50)] = 10,
+) -> dict[str, Any]:
+    """Rank cached complete GPS passes of a user-defined segment; never estimates from non-GPS data."""
+    return _read_query(segment_store.get_segment_best_efforts,
+                       segment_id, segment_name, sport, start_date, end_date, limit)
+
+
+@mcp.tool(annotations=WRITES_DB, structured_output=True)
+async def register_segment(
+    name: str,
+    sport: Literal["running", "cycling"],
+    start_latitude: Annotated[float, Field(ge=-90, le=90)],
+    start_longitude: Annotated[float, Field(ge=-180, le=180)],
+    end_latitude: Annotated[float, Field(ge=-90, le=90)],
+    end_longitude: Annotated[float, Field(ge=-180, le=180)],
+    radius_m: Annotated[float, Field(ge=5, le=200)] = 30,
+    waypoints: list[dict[str, float]] | None = None,
+) -> dict[str, Any]:
+    """Register a start, optional ordered waypoints, and end supplied by the user."""
+    try:
+        return await segment_tool.register_segment(name, sport, start_latitude, start_longitude,
+                                                   end_latitude, end_longitude, radius_m, waypoints)
+    except (httpx.HTTPError, ValueError, RuntimeError, OSError):
+        return {"status": "service_error", "message": "Private segment registration failed"}
+
+
+@mcp.tool(annotations=WRITES_DB, structured_output=True)
+async def refresh_segment(
+    segment_id: Annotated[int, Field(gt=0)],
+    batch_size: Annotated[int, Field(ge=1, le=20)] = 10,
+) -> dict[str, Any]:
+    """Index a bounded batch of saved GPS activities for a registered segment; no Garmin calls."""
+    try:
+        return await segment_tool.refresh_segment(segment_id, batch_size)
+    except (httpx.HTTPError, ValueError, RuntimeError, OSError):
+        return {"status": "service_error", "message": "Private segment indexing failed"}
 
 
 @mcp.tool(annotations=COLLECTS_DATA, structured_output=True)

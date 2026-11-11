@@ -25,6 +25,7 @@ def connect(config: Config, statement_timeout_ms: int | None = None):
 def ensure_schema(conn) -> None:
     schema = (ROOT / "sql" / "schema.sql").read_text(encoding="utf-8")
     with conn.transaction():
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (-8620201,))
         conn.execute(schema)
         conn.execute(
             "INSERT INTO garmin_schema_migrations (version) VALUES (1) ON CONFLICT DO NOTHING"
@@ -116,13 +117,27 @@ def _insert(conn, table: str, row: dict, conflict: str) -> None:
 
 def save_activity(conn, activity: dict, laps: list[dict], samples: list[dict]) -> None:
     with conn.transaction():
-        updates = ", ".join(f"{column} = EXCLUDED.{column}" for column in activity if column != "activity_id")
-        _insert(conn, "garmin_activities", activity, f"ON CONFLICT (activity_id) DO UPDATE SET {updates}")
         activity_id = activity["activity_id"]
-        conn.execute("DELETE FROM garmin_laps WHERE activity_id = %s", (activity_id,))
-        conn.execute("DELETE FROM garmin_samples WHERE activity_id = %s", (activity_id,))
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (activity_id,))
+        updates = ", ".join(f"{column} = EXCLUDED.{column}" for column in activity if column != "activity_id")
+        updates += ", collected_at = now()"
+        _insert(conn, "garmin_activities", activity, f"ON CONFLICT (activity_id) DO UPDATE SET {updates}")
         for lap in laps:
-            _insert(conn, "garmin_laps", lap, "")
+            columns = [key for key in lap if key not in ("activity_id", "lap_number")]
+            preserve = ", ".join(
+                f"{column} = COALESCE(EXCLUDED.{column}, garmin_laps.{column})"
+                for column in columns if column != "raw_json"
+            )
+            preserve += ", raw_json = garmin_laps.raw_json || jsonb_strip_nulls(EXCLUDED.raw_json)"
+            _insert(conn, "garmin_laps", lap,
+                    f"ON CONFLICT (activity_id, lap_number) DO UPDATE SET {preserve}")
         for sample in samples:
-            _insert(conn, "garmin_samples", sample, "")
+            columns = [key for key in sample if key not in ("activity_id", "sample_index")]
+            preserve = ", ".join(
+                f"{column} = COALESCE(EXCLUDED.{column}, garmin_samples.{column})"
+                for column in columns if column != "raw_json"
+            )
+            preserve += ", raw_json = garmin_samples.raw_json || jsonb_strip_nulls(EXCLUDED.raw_json)"
+            _insert(conn, "garmin_samples", sample,
+                    f"ON CONFLICT (activity_id, sample_index) DO UPDATE SET {preserve}")
         conn.execute("DELETE FROM garmin_failed_activities WHERE activity_id = %s", (activity_id,))

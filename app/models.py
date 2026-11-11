@@ -19,6 +19,27 @@ def pace_seconds_per_km(speed_mps):
     return pace_seconds(speed_mps, 1000)
 
 
+def pool_length_m(data: dict):
+    value = pick(data, "poolLength")
+    unit = pick(data, "poolLengthUnit")
+    if isinstance(unit, dict):
+        unit = pick(unit, "unitKey", "key", "name")
+    if not isinstance(value, (int, float)) or not isinstance(unit, str):
+        return None
+    unit = unit.lower()
+    if unit in ("meter", "meters", "metre", "metres", "m"):
+        return value
+    if unit in ("yard", "yards", "yd"):
+        return value * 0.9144
+    return None
+
+
+def stroke_name(value):
+    if isinstance(value, dict):
+        value = pick(value, "typeKey", "key", "name")
+    return value if isinstance(value, str) else None
+
+
 SPORT_ROOTS = {"running": "running", "cycling": "cycling",
                "swimming": "swimming", "multi_sport": "multisport"}
 
@@ -63,6 +84,7 @@ def activity_row(summary: dict, activity: dict, zones, details: dict | None = No
                  sport_group: str = "running") -> dict:
     dto = activity.get("summaryDTO") or {}
     combined = {**summary, **dto}
+    swim_data = {**summary, **activity, **dto}
     activity_type = activity.get("activityTypeDTO") or summary.get("activityType") or {}
     return {
         "activity_id": int(summary["activityId"]),
@@ -84,6 +106,9 @@ def activity_row(summary: dict, activity: dict, zones, details: dict | None = No
         "elevation_gain_m": pick(combined, "elevationGain"),
         "elevation_loss_m": pick(combined, "elevationLoss"),
         "average_speed_mps": pick(combined, "averageSpeed"),
+        "pool_length_m": pool_length_m(swim_data) if sport_group == "swimming" else None,
+        "average_swolf": pick(swim_data, "averageSwolf", "avgSwolf") if sport_group == "swimming" else None,
+        "total_strokes": pick(swim_data, "totalStrokes", "strokeCount") if sport_group == "swimming" else None,
         "max_speed_mps": pick(combined, "maxSpeed"),
         "calories": pick(combined, "calories"),
         "aerobic_te": pick(combined, "aerobicTrainingEffect"),
@@ -112,6 +137,9 @@ def lap_rows(activity_id: int, response, sport_group: str = "running") -> list[d
             "average_cadence": pick(lap, "averageRunCadence", "averageCadence", "averageBikeCadence"),
             "elevation_gain_m": pick(lap, "elevationGain"),
             "lap_type": lap_type,
+            "swolf": pick(lap, "swolf", "averageSwolf") if sport_group == "swimming" else None,
+            "stroke_count": pick(lap, "strokeCount", "totalStrokes") if sport_group == "swimming" else None,
+            "stroke_type": stroke_name(pick(lap, "swimStroke", "strokeType")) if sport_group == "swimming" else None,
             "raw_json": lap,
         })
     return result
@@ -138,6 +166,8 @@ def sample_rows(activity_id: int, details: dict) -> list[dict]:
             # stride-rate directRunCadence channel.
             "cadence": pick(sample, "directDoubleCadence", "directBikeCadence"),
             "power": sample.get("directPower"),
+            "latitude": sample.get("directLatitude") if isinstance(sample.get("directLatitude"), (int, float)) and -90 <= sample["directLatitude"] <= 90 else None,
+            "longitude": sample.get("directLongitude") if isinstance(sample.get("directLongitude"), (int, float)) and -180 <= sample["directLongitude"] <= 180 else None,
             "raw_json": sample,
         })
     return rows
