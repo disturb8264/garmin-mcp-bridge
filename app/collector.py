@@ -1,6 +1,7 @@
 """Run collection and keep failures isolated by activity."""
 
 import logging
+import time
 from datetime import date, timedelta
 
 from app import database
@@ -30,19 +31,22 @@ def select_summaries(reader: GarminReader, mode: str, limit: int, start: date | 
 
 def collect(reader: GarminReader, mode: str, limit: int, start: date | None,
             end: date | None, dry_run: bool, conn, lookback_days: int,
-            strict: bool = False) -> tuple[int, int, int]:
+            strict: bool = False, groups: dict | None = None,
+            pause_seconds: float = 0) -> tuple[int, int, int]:
     history_id = None
     if conn is not None:
         history_id = database.start_history(conn, mode)
     found = saved = failed = 0
     try:
         summaries = select_summaries(reader, mode, limit, start, end, conn, lookback_days)
-        groups = sport_groups(reader.activity_types())
+        groups = groups if groups is not None else sport_groups(reader.activity_types()) if summaries else {}
         supported = [(item, classify_activity(item, groups)) for item in summaries]
         supported = [(item, group) for item, group in supported if group]
         found = len(supported)
         LOG.info("Found %s supported activities among %s activities", found, len(summaries))
-        for summary, group in supported:
+        for index, (summary, group) in enumerate(supported):
+            if index and pause_seconds:
+                time.sleep(pause_seconds)
             activity_id = summary.get("activityId")
             try:
                 activity = reader.activity(activity_id)

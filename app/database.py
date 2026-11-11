@@ -57,6 +57,14 @@ def mark_date_coverage(conn, start, end) -> None:
         )
 
 
+def date_range_covered(conn, start, end) -> bool:
+    row = conn.execute(
+        "SELECT count(*) FROM garmin_date_coverage WHERE covered_date BETWEEN %s AND %s",
+        (start, end),
+    ).fetchone()
+    return row[0] == (end - start).days + 1
+
+
 def pending_summaries(conn) -> list[dict]:
     return [row[0] for row in conn.execute(
         "SELECT summary_json FROM garmin_failed_activities ORDER BY last_failed_at"

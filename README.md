@@ -66,6 +66,12 @@ docker compose exec -T garmin python -m app.combined_healthcheck
 
 Synology에서는 프로젝트 디렉터리와 `data/tokens`를 영속적으로 유지하세요. NAS의 UID/GID에 맞게 `PUID`, `PGID`를 지정해야 토큰 파일을 읽을 수 있습니다. 운동 직후 조회는 날짜 도구가 필요할 때 Garmin에서 수집합니다. 정기 동기화가 필요하면 NAS 작업 스케줄러에서 `docker compose run --rm --entrypoint python garmin -m app.main --mode sync`를 실행하세요.
 
+과거 운동 전체를 한 번 수집할 때는 Python 환경과 DB 쓰기 계정이 설정된 곳에서 다음 명령을 실행하세요. 월별로 활동·랩·시계열을 저장하고, 완료한 날짜는 DB에 기록합니다. 중간에 멈추거나 Garmin 호출 제한이 발생하면 같은 명령을 다시 실행하면 완료한 달을 건너뜁니다. 현재 날짜는 수집 완료로 표시하지 않도록 종료일은 어제까지만 허용합니다. 기존 활동은 Activity ID 기준으로 갱신되므로 중복 행이 생기지 않습니다.
+
+```sh
+.venv/bin/python scripts/backfill-history.py --start 2000-01-01 --pause 1
+```
+
 NAS에서 `Collector token file must be private (mode 600)` 또는 MCP 토큰 권한 오류가 나면 프로젝트 디렉터리에서 다음을 실행하세요. 토큰 내용은 출력하지 않습니다.
 
 ```sh
