@@ -40,6 +40,7 @@ bash scripts/create-mcp-token.sh
 | `MCP_PGUSER`, `MCP_PGPASSWORD` | MCP 전용 PostgreSQL 읽기 계정 |
 | `PUID`, `PGID` | `data/tokens`와 두 내부 토큰 파일의 소유자 UID/GID |
 | `MCP_PORT` | NAS 호스트의 로컬 전용 MCP 포트. 기본값 `8765`; 이미 사용 중이면 변경 |
+| `GARMIN_IMAGE` | 선택 사항. 기본값은 Docker Hub의 `disturb8264/garmin-mcp-bridge:0.1.0`; GHCR 이미지는 `ghcr.io/disturb8264/garmin-mcp-bridge:0.1.0` |
 | `TUNNEL_ID`, `CONTROL_PLANE_API_KEY` | ChatGPT 터널 연결 시 필요 |
 
 DB 스키마는 수집기의 첫 저장 실행 때 자동 적용됩니다. 별도 DB 역할이 없다면, `PGDATABASE=garmin_running`으로 생성한 DB에 관리자 계정을 임시로 설정한 뒤 로컬 Python 환경에서 `scripts/setup_db_roles.py`를 **한 번만** 실행할 수 있습니다. 이 스크립트는 쓰기/읽기 역할을 생성하고 `.env`를 교체하며, 관리자 접속 정보는 Git에서 제외되는 `data/db_admin.env`에 보관합니다. 다른 DB 이름이나 기존 역할을 사용할 때는 PostgreSQL에서 쓰기 계정의 테이블 생성·수정 권한과 읽기 계정의 `SELECT` 권한을 직접 준비하세요. 새 테이블 `garmin_date_coverage`에도 읽기 권한이 필요합니다.
@@ -62,7 +63,16 @@ docker compose ps
 docker compose exec -T garmin python -m app.combined_healthcheck
 ```
 
-코드를 변경한 뒤에는 `sh scripts/build-image.sh`로 `disturb8264/garmin-mcp-bridge:latest` 이미지를 다시 빌드하고 `docker compose up -d --force-recreate`로 실행 중인 컨테이너를 교체하세요. NAS에서 Docker Hub에 올린 이미지를 사용하려면 먼저 `docker pull disturb8264/garmin-mcp-bridge:latest`를 실행하세요. Compose는 로컬 이미지만 사용하며 이미지를 직접 빌드하거나 내려받지 않습니다. 마지막 확인 명령이 성공하면 MCP 서버와 터널이 준비된 상태입니다. MCP 포트는 NAS 호스트의 `127.0.0.1:${MCP_PORT:-8765}`에만 바인딩됩니다. 터널 클라이언트는 `ghcr.io/openai/tunnel-client:v0.0.20`에서 이미지 빌드 시 가져옵니다.
+`sh scripts/build-image.sh`는 같은 빌드 결과에 Docker Hub와 GHCR의 `0.1.0` 태그를 붙입니다. 이미 두 레지스트리에 올린 이미지를 NAS에서 사용할 때는 선택한 이미지를 먼저 내려받으세요:
+
+```sh
+docker pull disturb8264/garmin-mcp-bridge:0.1.0
+# GHCR을 사용할 경우 .env에 GARMIN_IMAGE=ghcr.io/disturb8264/garmin-mcp-bridge:0.1.0을 설정하고:
+docker pull ghcr.io/disturb8264/garmin-mcp-bridge:0.1.0
+docker compose up -d --force-recreate
+```
+
+Compose는 로컬 이미지만 사용하며 이미지를 직접 빌드하거나 내려받지 않습니다. 코드를 변경해 로컬에서 실행하려면 빌드 스크립트를 다시 실행한 뒤 컨테이너를 교체하세요. 마지막 확인 명령이 성공하면 MCP 서버와 터널이 준비된 상태입니다. MCP 포트는 NAS 호스트의 `127.0.0.1:${MCP_PORT:-8765}`에만 바인딩됩니다. 터널 클라이언트는 `ghcr.io/openai/tunnel-client:v0.0.20`에서 이미지 빌드 시 가져옵니다.
 
 Synology에서는 프로젝트 디렉터리와 `data/tokens`를 영속적으로 유지하세요. NAS의 UID/GID에 맞게 `PUID`, `PGID`를 지정해야 토큰 파일을 읽을 수 있습니다. 운동 직후 조회는 날짜 도구가 필요할 때 Garmin에서 수집합니다. 정기 동기화가 필요하면 NAS 작업 스케줄러에서 `docker compose run --rm --entrypoint python garmin -m app.main --mode sync`를 실행하세요.
 
