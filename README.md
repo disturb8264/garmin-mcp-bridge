@@ -40,7 +40,7 @@ bash scripts/create-mcp-token.sh
 | `MCP_PGUSER`, `MCP_PGPASSWORD` | MCP 전용 PostgreSQL 읽기 계정 |
 | `PUID`, `PGID` | `data/tokens`와 두 내부 토큰 파일의 소유자 UID/GID |
 | `MCP_PORT` | NAS 호스트의 로컬 전용 MCP 포트. 기본값 `8765`; 이미 사용 중이면 변경 |
-| `GARMIN_IMAGE` | 선택 사항. 기본값은 Docker Hub의 `disturb8264/garmin-mcp-bridge:0.2.0`; GHCR 이미지는 `ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0` |
+| `GARMIN_IMAGE` | 선택 사항. 기본값은 Docker Hub에 게시된 `disturb8264/garmin-mcp-bridge:0.2.0` |
 | `TUNNEL_ID`, `CONTROL_PLANE_API_KEY` | ChatGPT 터널 연결 시 필요 |
 
 DB 스키마는 수집기의 첫 저장 실행 때 자동 적용됩니다. 별도 DB 역할이 없다면, `PGDATABASE=garmin_running`으로 생성한 DB에 관리자 계정을 임시로 설정한 뒤 로컬 Python 환경에서 `scripts/setup_db_roles.py`를 **한 번만** 실행할 수 있습니다. 이 스크립트는 쓰기/읽기 역할을 생성하고 `.env`를 교체하며, 관리자 접속 정보는 Git에서 제외되는 `data/db_admin.env`에 보관합니다. 다른 DB 이름이나 기존 역할을 사용할 때는 PostgreSQL에서 쓰기 계정의 테이블 생성·수정 권한과 읽기 계정의 `SELECT` 권한을 직접 준비하세요. 새 테이블 `garmin_date_coverage`에도 읽기 권한이 필요합니다.
@@ -63,12 +63,10 @@ docker compose ps
 docker compose exec -T garmin python -m app.combined_healthcheck
 ```
 
-`sh scripts/build-image.sh`는 같은 빌드 결과에 Docker Hub와 GHCR의 `0.2.0` 태그를 붙입니다. 새 버전을 레지스트리에 푸시한 뒤 NAS에서 선택한 이미지를 내려받으세요:
+`sh scripts/build-image.sh`는 같은 빌드 결과에 Docker Hub와 GHCR의 `0.2.0` 태그를 붙입니다. 현재 Docker Hub에 `0.2.0`이 게시되어 있습니다. NAS에서는 이미지를 내려받은 뒤 컨테이너를 교체하세요:
 
 ```sh
 docker pull disturb8264/garmin-mcp-bridge:0.2.0
-# GHCR을 사용할 경우 .env에 GARMIN_IMAGE=ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0을 설정하고:
-docker pull ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0
 docker compose up -d --force-recreate
 ```
 
@@ -132,13 +130,7 @@ Container Manager에서 직접 실행할 때 `MCP_PORT`는 **컨테이너 내부
 
 ## 0.2.0 배포 및 저장 데이터 보강
 
-현재 실행 중인 과거 수집이 끝난 뒤 다음 순서로 진행하세요. 모든 스크립트는 수집 실행 중이면 DB 변경을 거절합니다. 운영 DB 백업 후 새 `0.2.0` 이미지를 빌드·푸시하고 NAS에서 선택한 이미지를 내려받으세요. Compose의 `pull_policy: never`는 자동 다운로드를 하지 않습니다.
-
-```sh
-sh scripts/build-image.sh
-docker push disturb8264/garmin-mcp-bridge:0.2.0
-docker push ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0
-```
+과거 수집이 끝난 뒤 다음 순서로 진행하세요. 모든 스크립트는 수집 실행 중이면 DB 변경을 거절합니다. 운영 DB를 백업하고 Docker Hub의 `0.2.0` 이미지를 내려받으세요. Compose의 `pull_policy: never`는 자동 다운로드를 하지 않습니다. GHCR 태그는 빌드 스크립트에서 로컬로 생성하지만 별도로 푸시해야 사용할 수 있습니다.
 
 NAS의 Compose 프로젝트에서는 백필이 끝난 뒤 마이그레이션과 저장 데이터 보강을 실행하고 컨테이너를 교체합니다:
 
@@ -150,7 +142,7 @@ docker compose run --rm --entrypoint python garmin scripts/enrich-saved-swim.py 
 docker compose up -d --force-recreate
 ```
 
-GHCR을 사용하면 `.env`의 `GARMIN_IMAGE`를 `ghcr.io/disturb8264/garmin-mcp-bridge:0.2.0`으로 지정하고 해당 이미지를 내려받으세요. Container Manager에서 이미지를 직접 실행하는 경우, 동일한 DB 쓰기 환경변수가 설정된 새 컨테이너에서 `python scripts/apply-migrations.py`와 두 보강 스크립트를 실행할 수 있습니다. 읽기 전용 MCP 계정을 별도로 만들었다면 새 `garmin_segments`, `garmin_segment_scans`, `garmin_segment_efforts` 테이블의 `SELECT` 권한도 확인하세요. 새 환경변수는 없습니다.
+Container Manager에서 이미지를 직접 실행하는 경우, 동일한 DB 쓰기 환경변수가 설정된 새 컨테이너에서 `python scripts/apply-migrations.py`와 두 보강 스크립트를 실행할 수 있습니다. 읽기 전용 MCP 계정을 별도로 만들었다면 새 `garmin_segments`, `garmin_segment_scans`, `garmin_segment_efforts` 테이블의 `SELECT` 권한도 확인하세요. 새 환경변수는 없습니다.
 
 구간을 등록한 다음에는 반환된 `segment_id`로 다음 명령을 실행할 수 있습니다:
 
