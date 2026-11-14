@@ -50,6 +50,8 @@ docker compose ps
 
 두 빌드 스크립트는 각각 `services/garmin`, `services/gateway`만 빌드 대상으로 사용합니다. Compose는 로컬 이미지 두 개를 사용하며 이미지를 직접 빌드하거나 내려받지 않습니다. 게이트웨이는 Garmin이 정상 상태가 된 뒤 시작합니다. InBody도 별도로 접근 가능해야 InBody 도구가 동작합니다.
 
+빌드 스크립트와 Compose는 모두 루트 `.env`의 `GARMIN_IMAGE`, `GATEWAY_IMAGE`를 사용합니다. 버전을 바꿀 때는 이 두 태그를 함께 수정하고, 새 배포용 기본값은 `.env.example`에도 반영합니다.
+
 ```sh
 docker compose exec -T garmin python -m app.combined_healthcheck
 docker compose exec -T gateway python -m gateway.combined_healthcheck
@@ -66,7 +68,7 @@ docker compose exec -T gateway python -m gateway.combined_healthcheck
 - 게이트웨이: `runtime/gateway/.env` 값을 전달하고 `gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트합니다. Garmin·InBody의 호스트 포트에 닿도록 호스트 네트워크를 사용합니다. 추가 환경변수는 `docker-compose.yml`의 `gateway.environment`를 따릅니다.
 - `gateway.yaml`의 Garmin·InBody 주소를 NAS의 실제 주소로 확인합니다. 같은 터널 ID를 쓰는 기존 클라이언트와 새 클라이언트를 동시에 실행하지 않습니다.
 
-로컬 빌드한 Garmin `0.3.1` 및 게이트웨이 `mcp-gateway:local` 이미지는 레지스트리에 게시하지 않았습니다. NAS에는 두 이미지를 각각 전달하거나 게시한 뒤 배포합니다. 이 저장소의 폴더 변경으로 기존 NAS 컨테이너가 바뀌지는 않습니다.
+로컬 빌드한 `disturb8264/garmin-mcp:0.4.0`, `disturb8264/mcp-gateway:0.4.0` 이미지는 레지스트리에 게시하지 않았습니다. NAS에는 두 이미지를 각각 전달하거나 게시한 뒤 배포합니다. 이 저장소의 폴더 변경으로 기존 NAS 컨테이너가 바뀌지는 않습니다.
 
 ## 로컬 테스트
 
