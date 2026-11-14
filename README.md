@@ -12,11 +12,13 @@
 | `services/gateway/` | 게이트웨이 소스, Dockerfile, 설정 예제 |
 | `scripts/build-garmin.sh`, `scripts/build-gateway.sh` | 각 이미지의 별도 빌드 스크립트 |
 | `scripts/init-gateway.py` | 호스트에서 게이트웨이 설정과 자체 토큰 준비. 컨테이너를 만들지 않음 |
-| `runtime/garmin/` | Garmin `.env`, 토큰, 로컬 데이터. Git 제외 |
-| `runtime/gateway/` | 게이트웨이 `.env`, `gateway.yaml`, 토큰 복사본. Git 제외 |
+| `runtime/garmin/` | Garmin `.env`, 토큰, 로컬 데이터. 실행 파일은 Git 제외 |
+| `runtime/gateway/` | 게이트웨이 `.env`, `gateway.yaml`, 토큰 복사본. 실행 파일은 Git 제외 |
 | `docs/archive/` | 이전 배포 안내. 현재 경로에는 적용되지 않음 |
 
 InBody는 이 저장소 밖에서 운영합니다. 기본 게이트웨이 설정은 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결하며, 게이트웨이 자체는 `127.0.0.1:18767/mcp`에서 수신합니다. 다른 호스트에 배포할 때는 `runtime/gateway/gateway.yaml`의 하위 서버 주소를 실제 주소로 바꿉니다.
+
+실행 파일별 생성 방법은 [runtime 안내](runtime/README.md)에 정리했습니다.
 
 ## 실행 파일 준비
 
