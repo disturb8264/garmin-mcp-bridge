@@ -2,6 +2,7 @@
 
 import asyncio
 import hmac
+import ipaddress
 import logging
 import os
 import re
@@ -11,6 +12,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import uvicorn
@@ -26,6 +28,9 @@ from starlette.routing import Mount, Route
 LOG = logging.getLogger("gateway")
 ROOT = Path(__file__).resolve().parent.parent
 ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+PRIVATE_IPV4_NETWORKS = tuple(ipaddress.ip_network(network) for network in (
+    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+))
 
 
 def private_token(path: Path) -> str:
@@ -51,6 +56,33 @@ class Upstream:
     allowed_tools: frozenset[str]
 
 
+def validate_upstream_url(url: str, allow_private_http: bool = False) -> None:
+    if not isinstance(url, str):
+        raise ValueError("upstream URL must be a string")
+    try:
+        parsed = urlsplit(url)
+        host = parsed.hostname
+        _ = parsed.port
+    except ValueError as exc:
+        raise ValueError("invalid upstream URL") from exc
+    if not host or not parsed.path or parsed.username or parsed.password or parsed.fragment:
+        raise ValueError("invalid upstream URL")
+    if parsed.scheme == "https":
+        return
+    if parsed.scheme != "http":
+        raise ValueError("upstream needs HTTP or HTTPS")
+    if host in ("127.0.0.1", "localhost"):
+        return
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError as exc:
+        raise ValueError("remote HTTP upstream needs a private IPv4 address") from exc
+    if not allow_private_http or address.version != 4 or not any(
+        address in network for network in PRIVATE_IPV4_NETWORKS
+    ):
+        raise ValueError("remote HTTP upstream needs allow_private_http: true and a private IPv4 address")
+
+
 def load_config(path: Path) -> tuple[dict[str, Any], list[Upstream], str]:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
@@ -63,8 +95,10 @@ def load_config(path: Path) -> tuple[dict[str, Any], list[Upstream], str]:
         if not ID_RE.fullmatch(server_id) or server_id in seen:
             raise ValueError(f"invalid or duplicate upstream id: {server_id}")
         seen.add(server_id)
-        if not item["url"].startswith(("http://127.0.0.1:", "http://localhost:", "https://")):
-            raise ValueError(f"upstream {server_id} needs loopback HTTP or HTTPS")
+        allow_private_http = item.get("allow_private_http", False)
+        if not isinstance(allow_private_http, bool):
+            raise ValueError(f"invalid allow_private_http: {server_id}")
+        validate_upstream_url(item["url"], allow_private_http)
         allow = item["allowed_tools"]
         if not isinstance(allow, list) or not allow or not all(isinstance(x, str) for x in allow):
             raise ValueError(f"invalid allowed_tools: {server_id}")

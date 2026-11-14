@@ -34,7 +34,7 @@ GARMIN_TOKEN_SOURCE=/실제/가민/토큰/경로 \
 sh services/gateway/scripts/copy-upstream-tokens.sh
 ```
 
-`runtime/gateway/gateway.yaml`의 두 `url`을 실제 접근 주소로 확인합니다. 기본 호스트 네트워크에서는 같은 호스트에 게시된 포트에 `127.0.0.1`로 접근할 수 있습니다. 다른 서버의 하위 MCP에는 HTTPS 주소를 지정합니다. 그 경우 게이트웨이는 브리지 네트워크에서도 실행할 수 있습니다. `allowed_tools: ["*"]`는 수집·데이터 변경 도구도 공개하므로, 필요한 도구만 공개하려면 원본 도구 이름 목록으로 바꿉니다.
+`runtime/gateway/gateway.yaml`의 두 `url`을 실제 접근 주소로 확인합니다. 기본 호스트 네트워크에서는 같은 호스트에 게시된 포트에 `127.0.0.1`로 접근할 수 있습니다. 다른 서버의 하위 MCP에는 HTTPS 주소를 권장합니다. 사설망 HTTP 주소를 쓴다면 해당 서버 항목에 `allow_private_http: true`를 추가합니다. 원격 서버에는 브리지 네트워크도 사용할 수 있습니다. `allowed_tools: ["*"]`는 수집·데이터 변경 도구도 공개하므로, 필요한 도구만 공개하려면 원본 도구 이름 목록으로 바꿉니다.
 
 ## 2. 빌드와 실행
 
@@ -56,8 +56,9 @@ Compose의 `gateway`는 Garmin이 정상 상태가 된 뒤 시작합니다. 게�
 | --- | --- | --- |
 | 같은 NAS의 호스트 포트 | `host` | `http://127.0.0.1:18765/mcp` |
 | 다른 서버의 HTTPS 엔드포인트 | `bridge` 또는 `host` | `https://mcp.example.net/mcp` |
+| 다른 서버의 사설망 HTTP 엔드포인트 | `bridge` 또는 `host` | `http://192.168.100.12:8767/mcp` + `allow_private_http: true` |
 
-Compose에서는 루트 `.env`의 `GATEWAY_NETWORK_MODE`로 네트워크를 선택합니다. Docker 앱에서 직접 실행한다면 네트워크를 화면에서 선택합니다. 이 저장소의 Compose는 Garmin 컨테이너도 함께 정의하므로, 게이트웨이만 별도 서버에 올릴 때는 게이트웨이 이미지를 단독 실행하고 해당 서버의 `gateway.yaml`, `.env`, 토큰 파일을 준비합니다. 다른 서버의 일반 HTTP 주소는 현재 코드가 허용하지 않습니다.
+Compose에서는 루트 `.env`의 `GATEWAY_NETWORK_MODE`로 네트워크를 선택합니다. Docker 앱에서 직접 실행한다면 네트워크를 화면에서 선택합니다. 이 저장소의 Compose는 Garmin 컨테이너도 함께 정의하므로, 게이트웨이만 별도 서버에 올릴 때는 게이트웨이 이미지를 단독 실행하고 해당 서버의 `gateway.yaml`, `.env`, 토큰 파일을 준비합니다. 사설망 HTTP 설정 방법은 [05 외부 MCP 추가](05-add-upstream-mcp.md)를 참고하세요.
 
 ## NAS Container Manager에서 직접 실행할 때
 

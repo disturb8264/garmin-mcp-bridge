@@ -4,7 +4,7 @@
 
 ## 연결 가능한 서버
 
-현재 게이트웨이는 HTTP 기반 Streamable MCP의 **도구(`tools/list`, `tools/call`)**를 중계합니다. 새 서버는 `X-MCP-Internal-Token` 헤더로 인증해야 하며, 게이트웨이에 해당 서버의 **활성 토큰** 파일이 있어야 합니다. 원격 호스트는 `https://` 주소를 사용합니다. 일반 HTTP는 `127.0.0.1` 또는 `localhost` 주소만 허용합니다. 원격 HTTPS 서버에만 연결한다면 게이트웨이는 브리지 네트워크에서도 실행할 수 있습니다. stdio 전용 서버나 OAuth 등 다른 인증 방식의 서버는 현재 설정만으로 등록할 수 없습니다.
+현재 게이트웨이는 HTTP 기반 Streamable MCP의 **도구(`tools/list`, `tools/call`)**를 중계합니다. 새 서버는 `X-MCP-Internal-Token` 헤더로 인증해야 하며, 게이트웨이에 해당 서버의 **활성 토큰** 파일이 있어야 합니다. 원격 호스트에는 HTTPS를 권장합니다. 사설망 IPv4 주소의 HTTP는 서버 항목에 `allow_private_http: true`를 명시하면 사용할 수 있습니다. 이 경우 토큰과 데이터가 네트워크에서 암호화되지 않습니다. 원격 서버에 연결할 때는 브리지 네트워크도 사용할 수 있습니다. stdio 전용 서버나 OAuth 등 다른 인증 방식의 서버는 현재 설정만으로 등록할 수 없습니다.
 
 ## 1. 하위 서버 토큰 준비
 
@@ -30,6 +30,18 @@ install -m 600 /실제/서버/활성/토큰/경로 runtime/gateway/secrets/examp
 `id`는 다른 서버와 겹치지 않는 소문자·숫자·밑줄 이름이어야 하며 소문자로 시작합니다. 공개 도구 이름은 `example_get_status`처럼 `<id>_<원본 도구 이름>`이 됩니다. `token_file`은 컨테이너의 `/app/gateway.yaml`을 기준으로 해석되므로, `secrets/example_token`은 `/app/secrets/example_token`을 가리킵니다.
 
 `allowed_tools`에는 공개할 **원본 도구 이름**을 적습니다. `['*']`도 가능하지만 해당 서버의 모든 도구가 공개되므로 수집·변경 도구가 있는지 먼저 확인합니다. 도구 이름을 모른다면 하위 서버의 도구 목록을 확인한 뒤 필요한 이름을 적습니다.
+
+다른 서버의 사설망 HTTP MCP를 추가하는 경우에는 다음과 같이 적습니다. `url`은 `/health`가 아닌 실제 MCP 엔드포인트여야 합니다. 아래 예시는 `echo_token`이 테스트 서버의 **활성 토큰과 같은 값**이고, 도구의 원본 이름이 `echo`일 때 사용합니다.
+
+```yaml
+  - id: echo
+    url: http://192.168.100.12:8767/mcp
+    token_file: secrets/echo_token
+    allow_private_http: true
+    allowed_tools: ["echo"]
+```
+
+게이트웨이 컨테이너에서 `secrets/echo_token`을 `/app/secrets/echo_token`으로 읽을 수 있어야 합니다. 이 옵션은 새 게이트웨이 이미지에 있으므로 이전 이미지를 사용 중이면 이미지를 다시 빌드하고 NAS의 컨테이너를 갱신하세요.
 
 ## 3. 게이트웨이 재시작과 확인
 
