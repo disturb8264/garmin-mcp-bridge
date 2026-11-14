@@ -7,11 +7,12 @@ flowchart LR
     ChatGPT[ChatGPT] <-->|Secure MCP Tunnel| Gateway[Gateway 컨테이너]
     Gateway <-->|HTTP MCP · 내부 토큰| Garmin[Garmin 컨테이너]
     Gateway <-->|HTTP MCP · 내부 토큰| InBody[InBody MCP · 외부 서비스]
+    Gateway <-->|사설망 HTTP MCP · 내부 토큰| Echo[Echo MCP · 다른 서버 예시]
     Garmin -->|활동 조회·수집| GarminConnect[Garmin Connect]
     Garmin <-->|저장·조회| DB[(PostgreSQL)]
 ```
 
-Garmin 컨테이너는 수집기와 MCP 서버를 실행하며 터널 클라이언트는 포함하지 않습니다. 게이트웨이 컨테이너가 하위 MCP의 도구 목록을 읽고 `garmin_`, `inbody_` 이름으로 제공하며, 터널 클라이언트도 이 컨테이너에서 실행합니다.
+Garmin 컨테이너는 수집기와 MCP 서버를 실행하며 터널 클라이언트는 포함하지 않습니다. 게이트웨이 컨테이너가 하위 MCP의 도구 목록을 읽고 서버 ID를 접두사로 붙여 제공합니다(예: `garmin_`, `inbody_`, `echo_`). 터널 클라이언트도 이 컨테이너에서 실행합니다. Echo는 추가 가능한 외부 서버의 예시이며 Compose에는 포함되지 않습니다.
 
 | 경로 | 역할 |
 | --- | --- |
@@ -21,4 +22,4 @@ Garmin 컨테이너는 수집기와 MCP 서버를 실행하며 터널 클라이�
 | `runtime/garmin/`, `runtime/gateway/` | 실행 설정·토큰·데이터. 안내 문서만 Git 포함 |
 | `scripts/create-gateway-token.py` | 게이트웨이 자체 토큰을 호스트에서 생성. 별도 컨테이너 없음 |
 
-기본 구성은 게이트웨이와 두 하위 MCP가 같은 호스트에 있어, 게이트웨이가 호스트 네트워크에서 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결합니다. 다른 서버에 있는 MCP는 `runtime/gateway/gateway.yaml`에 HTTPS URL을 지정합니다. 네트워크 모드는 루트 `.env`의 `GATEWAY_NETWORK_MODE`로 선택합니다. 실행 방법과 NAS 설정은 루트 [README](../README.md)를 참고하세요.
+기본 구성은 게이트웨이와 두 하위 MCP가 같은 호스트에 있어, 게이트웨이가 호스트 네트워크에서 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결합니다. 다른 서버에 있는 MCP는 `runtime/gateway/gateway.yaml`에 HTTPS URL을 지정하거나, 사설망 HTTP 주소와 `allow_private_http: true`를 함께 지정합니다. 네트워크 모드는 루트 `.env`의 `GATEWAY_NETWORK_MODE`로 선택합니다. 실행 방법과 NAS 설정은 루트 [README](../README.md)를 참고하세요.

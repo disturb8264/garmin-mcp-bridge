@@ -1,4 +1,4 @@
-> 2026-11-11 당시 기록입니다. 현재 통합 구성은 저장소 루트 `README.md`와 `docker-compose.yml`, `gateway/README.md`를 참조하세요.
+> 2026-11-11 당시 인수인계 기록입니다. 현재 구성과 외부 MCP 추가 방법은 [저장소 README](../../../README.md)와 [05 외부 MCP 추가](../../../docs/05-add-upstream-mcp.md)를 참조하세요. 아래의 `bootstrap`, `init`, 별도 Compose 파일 설명은 현재 구성에 적용되지 않습니다.
 
 # MCP Gateway handoff
 

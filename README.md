@@ -1,6 +1,6 @@
 # Garmin MCP + MCP 게이트웨이
 
-이 저장소에서 Docker 이미지 **두 개**를 빌드합니다. Garmin은 수집기와 MCP 서버만 실행하고 터널은 사용하지 않습니다. 게이트웨이는 Garmin과 외부 InBody MCP의 도구를 모아 Secure MCP Tunnel로 제공합니다. 루트 `docker-compose.yml`의 서비스는 `garmin`, `gateway` 두 개뿐입니다.
+이 저장소에서 Docker 이미지 **두 개**를 빌드합니다. Garmin은 수집기와 MCP 서버만 실행하고 터널은 사용하지 않습니다. 게이트웨이는 Garmin·InBody와 추가 MCP의 도구를 모아 Secure MCP Tunnel로 제공합니다. 루트 `docker-compose.yml`의 서비스는 `garmin`, `gateway` 두 개뿐입니다.
 
 문서는 [01 서비스 구조](docs/01-architecture.md) → [02 토큰 준비](docs/02-tokens.md) → [03 Garmin MCP 설정](docs/03-garmin-setup.md) → [04 게이트웨이 설정](docs/04-gateway-setup.md) → [05 외부 MCP 추가](docs/05-add-upstream-mcp.md) 순서로 읽으면 됩니다.
 
@@ -16,7 +16,7 @@
 | `runtime/gateway/` | 게이트웨이 `.env`, `gateway.yaml`, 토큰 복사본. 실행 파일은 Git 제외 |
 | `docs/archive/` | 이전 배포 안내. 현재 경로에는 적용되지 않음 |
 
-InBody는 이 저장소 밖에서 운영합니다. 기본 설정은 두 하위 MCP가 같은 호스트에 있을 때를 가정해 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결합니다. 이때 게이트웨이는 호스트 네트워크를 사용합니다. 다른 서버의 MCP에 연결할 때는 `runtime/gateway/gateway.yaml`의 URL을 실제 HTTPS 주소로 바꿉니다. 게이트웨이의 네트워크 모드는 루트 `.env`의 `GATEWAY_NETWORK_MODE`로 `host` 또는 `bridge`를 선택할 수 있습니다.
+InBody는 이 저장소 밖에서 운영합니다. 기본 설정은 두 하위 MCP가 같은 호스트에 있을 때를 가정해 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결합니다. 이때 게이트웨이는 호스트 네트워크를 사용합니다. 다른 서버의 MCP는 실제 HTTPS 주소로 연결하거나, 사설망 HTTP 주소를 쓸 때 해당 서버에 `allow_private_http: true`를 지정합니다. 방법은 [05 외부 MCP 추가](docs/05-add-upstream-mcp.md)에 있습니다. 게이트웨이의 네트워크 모드는 루트 `.env`의 `GATEWAY_NETWORK_MODE`로 `host` 또는 `bridge`를 선택할 수 있습니다.
 
 실행 파일별 생성 방법은 [runtime 안내](runtime/README.md)에 정리했습니다.
 
@@ -51,14 +51,14 @@ docker compose ps
 
 두 빌드 스크립트는 각각 `services/garmin`, `services/gateway`만 빌드 대상으로 사용합니다. Compose는 로컬 이미지 두 개를 사용하며 이미지를 직접 빌드하거나 내려받지 않습니다. 게이트웨이는 Garmin이 정상 상태가 된 뒤 시작합니다. InBody도 별도로 접근 가능해야 InBody 도구가 동작합니다.
 
-빌드 스크립트와 Compose는 모두 루트 `.env`의 `GARMIN_IMAGE`, `GATEWAY_IMAGE`를 사용합니다. 버전을 바꿀 때는 이 두 태그를 함께 수정하고, 새 배포용 기본값은 `.env.example`에도 반영합니다.
+빌드 스크립트와 Compose는 모두 루트 `.env`의 `GARMIN_IMAGE`, `GATEWAY_IMAGE`를 사용합니다. 두 이미지 버전은 독립적으로 지정할 수 있습니다. 버전을 바꾼 이미지의 태그를 `.env`와 `.env.example`에 반영합니다.
 
 ```sh
 docker compose exec -T garmin python -m app.combined_healthcheck
 docker compose exec -T gateway python -m gateway.combined_healthcheck
 ```
 
-게이트웨이는 시작할 때와 60초마다 하위 서버의 도구 목록을 읽습니다. 기본 `allowed_tools: ["*"]`는 수집·데이터 변경 도구까지 공개합니다. 공개 범위를 제한하려면 `runtime/gateway/gateway.yaml`을 수정합니다. 도구 이름에는 `garmin_`, `inbody_` 접두사가 붙습니다. ChatGPT에서 도구 정의가 바뀐 뒤에는 연결 Refresh가 필요할 수 있습니다.
+게이트웨이는 시작할 때와 60초마다 하위 서버의 도구 목록을 읽습니다. 기본 `allowed_tools: ["*"]`는 수집·데이터 변경 도구까지 공개합니다. 공개 범위를 제한하려면 `runtime/gateway/gateway.yaml`을 수정합니다. 공개 도구 이름에는 서버 ID가 접두사로 붙습니다(예: `echo_echo`). ChatGPT에서 새 도구를 보려면 게이트웨이의 도구 갱신을 확인한 뒤 연결을 Refresh합니다.
 
 ## Synology Container Manager
 
@@ -66,10 +66,10 @@ docker compose exec -T gateway python -m gateway.combined_healthcheck
 
 - 두 컨테이너 모두 마운트한 토큰 파일을 읽을 수 있는 UID/GID로 실행합니다. Garmin NAS의 마지막 정상 실행 값은 `1000:1000`입니다.
 - Garmin: `runtime/garmin/.env` 값을 전달하고 `runtime/garmin/data/tokens`를 `/app/data/tokens`에, 두 내부 토큰 파일을 `docker-compose.yml`에 적힌 경로에 마운트합니다. 컨테이너의 8765 포트를 NAS의 18765 포트에 연결합니다. 수집 API의 8766 포트는 컨테이너 내부에 둡니다.
-- 게이트웨이: `runtime/gateway/.env` 값을 전달하고 `gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트합니다. 같은 NAS의 `127.0.0.1` 포트에 연결할 때는 호스트 네트워크를 사용합니다. 다른 서버의 HTTPS MCP에만 연결할 때는 브리지 네트워크도 사용할 수 있습니다. 추가 환경변수는 `docker-compose.yml`의 `gateway.environment`를 따릅니다.
+- 게이트웨이: `runtime/gateway/.env` 값을 전달하고 `gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트합니다. 같은 NAS의 `127.0.0.1` 포트에 연결할 때는 호스트 네트워크를 사용합니다. 다른 서버의 MCP에만 연결할 때는 브리지 네트워크도 사용할 수 있습니다. 추가 환경변수는 `docker-compose.yml`의 `gateway.environment`를 따릅니다.
 - `gateway.yaml`의 Garmin·InBody 주소를 NAS의 실제 주소로 확인합니다. 같은 터널 ID를 쓰는 기존 클라이언트와 새 클라이언트를 동시에 실행하지 않습니다.
 
-로컬 빌드한 `disturb8264/garmin-mcp:0.4.0`, `disturb8264/mcp-gateway:0.4.0` 이미지는 레지스트리에 게시하지 않았습니다. NAS에는 두 이미지를 각각 전달하거나 게시한 뒤 배포합니다. 이 저장소의 폴더 변경으로 기존 NAS 컨테이너가 바뀌지는 않습니다.
+현재 예제 이미지 태그는 Garmin `disturb8264/garmin-mcp:0.4.0`, 게이트웨이 `disturb8264/mcp-gateway:0.4.1`입니다. NAS에는 선택한 태그의 이미지를 내려받고 컨테이너를 재생성해 적용합니다. 설정 파일만 바꿀 때는 게이트웨이 컨테이너 재시작으로 적용할 수 있습니다.
 
 ## 로컬 테스트
 
