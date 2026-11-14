@@ -2,7 +2,7 @@
 
 This folder is the build context for the gateway image. The image contains the Python gateway and the Secure MCP Tunnel client. Garmin has a separate image and InBody is an external upstream.
 
-The repository root `docker-compose.yml` runs one gateway container. There is no init service. Run `python3 scripts/init-gateway.py` from the repository root before starting a new deployment; it creates the gateway config and token on the host without replacing existing files. Copy the upstreams' active tokens with `sh services/gateway/scripts/copy-upstream-tokens.sh`.
+The repository root `docker-compose.yml` runs one gateway container. There is no init service. Copy `gateway.yaml.example` to `runtime/gateway/gateway.yaml` and edit the upstream addresses. Run `python3 scripts/create-gateway-token.py` from the repository root to create the gateway's own token if missing. Copy the upstreams' active tokens with `sh services/gateway/scripts/copy-upstream-tokens.sh`.
 
 The runtime files are under `runtime/gateway/` and excluded from Git and image builds. The example `gateway.yaml.example` uses Garmin at `127.0.0.1:18765/mcp` and InBody at `127.0.0.1:18766/mcp`. The gateway uses host networking and publishes its own MCP endpoint at `127.0.0.1:18767/mcp`. Every request needs the gateway's `X-MCP-Internal-Token`; each upstream receives only its own token.
 

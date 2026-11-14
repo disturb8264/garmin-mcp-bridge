@@ -9,12 +9,22 @@ Garmin MCP와 InBody MCP가 먼저 실행 중이어야 합니다. 같은 호스�
 ```sh
 mkdir -p runtime/gateway
 test -f runtime/gateway/.env || cp services/gateway/.env.example runtime/gateway/.env
+test -f runtime/gateway/gateway.yaml || cp services/gateway/gateway.yaml.example runtime/gateway/gateway.yaml
 chmod 600 runtime/gateway/.env
-python3 scripts/init-gateway.py
+python3 scripts/create-gateway-token.py
 sh services/gateway/scripts/copy-upstream-tokens.sh
 ```
 
-`runtime/gateway/.env`에 `TUNNEL_ID`와 `CONTROL_PLANE_API_KEY`를 입력합니다. `init-gateway.py`는 `runtime/gateway/gateway.yaml`과 `secrets/gateway_token`이 **없을 때만** 만들며, 별도 컨테이너를 실행하지 않습니다.
+`gateway.yaml`은 저장소의 샘플을 복사한 뒤 직접 수정합니다. `upstreams`의 Garmin·InBody `url`, `token_file`, `allowed_tools`를 확인하세요. 이미 운영 중인 설정 파일은 위 명령이 덮어쓰지 않습니다.
+
+| 값 | 준비 방법 |
+| --- | --- |
+| `runtime/gateway/secrets/gateway_token` | `create-gateway-token.py`가 임의의 긴 토큰을 생성. 직접 만들어도 되지만 **32자 이상**, ASCII, 파일 mode `600` 필요 |
+| `runtime/gateway/secrets/garmin_token` | Garmin MCP의 **활성** 내부 토큰 복사 |
+| `runtime/gateway/secrets/inbody_token` | InBody MCP의 **활성** 내부 토큰 복사 |
+| `.env`의 `TUNNEL_ID`, `CONTROL_PLANE_API_KEY` | 사용할 터널의 실제 ID와 발급받은 키 입력. 임의로 만들 수 없음 |
+
+게이트웨이 자체 토큰 생성 스크립트는 기존 토큰을 덮어쓰지 않으며 별도 컨테이너를 실행하지 않습니다. Garmin·InBody 토큰을 임의로 새로 만들면 하위 서버 인증이 실패합니다.
 
 토큰 복사 스크립트는 Garmin의 `runtime/garmin/data/mcp_internal_token`과 기본 InBody 경로 `/home/disturb/projects/inbody/data/mcp_internal_token`에서 활성 토큰을 복사합니다. 다른 위치에 있다면 다음처럼 원본 경로를 지정합니다.
 

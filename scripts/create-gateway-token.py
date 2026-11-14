@@ -1,13 +1,11 @@
-"""Prepare gateway runtime files on the host without creating a container."""
+"""Create the gateway's own internal token on the host if missing."""
 
 import os
 import secrets
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent.parent
-RUNTIME = ROOT / "runtime" / "gateway"
-EXAMPLE = ROOT / "services" / "gateway" / "gateway.yaml.example"
+RUNTIME = Path(__file__).resolve().parent.parent / "runtime" / "gateway"
 
 
 def create_private(path: Path, content: str) -> bool:
@@ -28,13 +26,11 @@ def main() -> None:
     os.chmod(RUNTIME.parent, 0o700)
     os.chmod(RUNTIME, 0o700)
     os.chmod(secret_dir, 0o700)
-    config = RUNTIME / "gateway.yaml"
     token = secret_dir / "gateway_token"
-    if create_private(config, EXAMPLE.read_text(encoding="utf-8")):
-        print("Created runtime/gateway/gateway.yaml")
     if create_private(token, secrets.token_urlsafe(48) + "\n"):
         print("Created runtime/gateway/secrets/gateway_token")
-    print("Gateway runtime files ready")
+    else:
+        print("Existing gateway token kept")
 
 
 if __name__ == "__main__":

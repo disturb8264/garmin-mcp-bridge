@@ -11,7 +11,7 @@
 | `services/garmin/` | Garmin 소스, SQL, 테스트, Dockerfile |
 | `services/gateway/` | 게이트웨이 소스, Dockerfile, 설정 예제 |
 | `scripts/build-garmin.sh`, `scripts/build-gateway.sh` | 각 이미지의 별도 빌드 스크립트 |
-| `scripts/init-gateway.py` | 호스트에서 게이트웨이 설정과 자체 토큰 준비. 컨테이너를 만들지 않음 |
+| `scripts/create-gateway-token.py` | 호스트에서 게이트웨이 자체 토큰 생성. 컨테이너를 만들지 않음 |
 | `runtime/garmin/` | Garmin `.env`, 토큰, 로컬 데이터. 실행 파일은 Git 제외 |
 | `runtime/gateway/` | 게이트웨이 `.env`, `gateway.yaml`, 토큰 복사본. 실행 파일은 Git 제외 |
 | `docs/archive/` | 이전 배포 안내. 현재 경로에는 적용되지 않음 |
@@ -30,13 +30,14 @@ cp services/gateway/.env.example runtime/gateway/.env
 chmod 700 runtime runtime/garmin runtime/garmin/data runtime/garmin/data/tokens runtime/gateway
 chmod 600 .env runtime/garmin/.env runtime/gateway/.env
 bash services/garmin/scripts/create-mcp-token.sh
-python3 scripts/init-gateway.py
+test -f runtime/gateway/gateway.yaml || cp services/gateway/gateway.yaml.example runtime/gateway/gateway.yaml
+python3 scripts/create-gateway-token.py
 sh services/gateway/scripts/copy-upstream-tokens.sh
 ```
 
 `runtime/garmin/.env`에 Garmin 계정과 PostgreSQL 설정을 입력합니다. 로컬 Python 실행에는 `GARMIN_TOKEN_DIR=../../runtime/garmin/data/tokens`를 사용하고, Docker에서는 `/app/data/tokens`로 덮어씁니다. `runtime/gateway/.env`에는 `TUNNEL_ID`와 `CONTROL_PLANE_API_KEY`를 입력합니다. 루트 `.env`에는 이미지 이름·포트·UID/GID 같은 Compose 설정만 둡니다.
 
-토큰 복사 스크립트는 기본적으로 InBody의 `/home/disturb/projects/inbody/data/mcp_internal_token`과 `runtime/garmin/data/mcp_internal_token`을 복사합니다. 실제 위치가 다르면 `INBODY_TOKEN_SOURCE` 또는 `GARMIN_TOKEN_SOURCE`를 지정합니다. 하위 서버 토큰이 바뀌면 다시 복사하고 게이트웨이를 재시작합니다. `init-gateway.py`는 `runtime/gateway/gateway.yaml`과 `gateway_token`이 없을 때만 만들며 기존 파일은 덮어쓰지 않습니다.
+`gateway.yaml`은 샘플을 복사해 Garmin·InBody 주소와 공개할 도구를 확인합니다. 토큰 생성 스크립트는 게이트웨이 자체 토큰이 없을 때만 만들며 기존 파일은 보존합니다. 토큰 복사 스크립트는 기본적으로 InBody의 `/home/disturb/projects/inbody/data/mcp_internal_token`과 `runtime/garmin/data/mcp_internal_token`을 복사합니다. 실제 위치가 다르면 `INBODY_TOKEN_SOURCE` 또는 `GARMIN_TOKEN_SOURCE`를 지정합니다. 하위 서버 토큰이 바뀌면 다시 복사하고 게이트웨이를 재시작합니다.
 
 ## 빌드 및 실행
 
