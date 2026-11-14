@@ -69,7 +69,7 @@ docker compose exec -T gateway python -m gateway.combined_healthcheck
 - 게이트웨이: `runtime/gateway/.env` 값을 전달하고 `gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트합니다. 같은 NAS의 `127.0.0.1` 포트에 연결할 때는 호스트 네트워크를 사용합니다. 다른 서버의 MCP에만 연결할 때는 브리지 네트워크도 사용할 수 있습니다. 추가 환경변수는 `docker-compose.yml`의 `gateway.environment`를 따릅니다.
 - `gateway.yaml`의 Garmin·InBody 주소를 NAS의 실제 주소로 확인합니다. 같은 터널 ID를 쓰는 기존 클라이언트와 새 클라이언트를 동시에 실행하지 않습니다.
 
-현재 예제 이미지 태그는 Garmin `disturb8264/garmin-mcp:0.4.0`, 게이트웨이 `disturb8264/mcp-gateway:0.4.1`입니다. NAS에는 선택한 태그의 이미지를 내려받고 컨테이너를 재생성해 적용합니다. 설정 파일만 바꿀 때는 게이트웨이 컨테이너 재시작으로 적용할 수 있습니다.
+현재 예제 이미지 태그는 Garmin `disturb8264/garmin-mcp:0.4.1`, 게이트웨이 `disturb8264/mcp-gateway:0.4.1`입니다. NAS에는 선택한 태그의 이미지를 내려받고 컨테이너를 재생성해 적용합니다. 설정 파일만 바꿀 때는 게이트웨이 컨테이너 재시작으로 적용할 수 있습니다.
 
 ## 로컬 테스트
 
