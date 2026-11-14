@@ -29,3 +29,4 @@ handoff.md
 services/gateway/.env
 services/gateway/gateway.yaml
 services/gateway/secrets/
+/deploy/synology/*.env

@@ -51,6 +51,6 @@ Compose는 Garmin 이미지를 직접 빌드하거나 내려받지 않습니다.
 
 ## NAS Container Manager에서 직접 실행할 때
 
-NAS에는 빌드한 Garmin 이미지를 별도로 전달하거나 게시해야 합니다. 컨테이너를 만들 때 `runtime/garmin/.env`의 값을 환경변수로 입력하고, `docker-compose.yml`의 `garmin.environment` 값도 적용합니다. 토큰 디렉터리와 두 토큰 파일의 마운트 경로, 컨테이너 포트 `8765` → NAS 호스트 포트 `18765` 설정을 Compose와 동일하게 맞춥니다. 실행 사용자 UID/GID는 파일 소유자에 맞춰 지정하며, 기존 NAS에서 확인된 값은 `1000:1000`입니다. `PUID`·`PGID` 환경변수만 입력해서는 직접 실행 컨테이너의 실행 사용자가 바뀌지 않습니다.
+NAS에는 빌드한 Garmin 이미지를 별도로 전달하거나 게시해야 합니다. Docker 앱의 환경변수에는 [Garmin 변수 전체 목록](../deploy/synology/garmin.env.example)을 사용합니다. 이 파일은 `runtime/garmin/.env`의 계정·DB 값과 Compose가 추가하는 컨테이너 내부 경로·포트를 **한곳에 모은 입력 목록**입니다. 실행 사용자, 마운트, 포트는 [Synology 직접 실행 안내](../deploy/synology/README.md)의 표를 따릅니다. `PUID`·`PGID` 환경변수만 입력해서는 실행 사용자가 바뀌지 않습니다.
 
 설정 전체의 연결 구조는 [01 서비스 구조](01-architecture.md), 토큰 종류는 [02 토큰 준비](02-tokens.md), 두 컨테이너 실행 방법은 [루트 README](../README.md)를 참고하세요.

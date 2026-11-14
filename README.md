@@ -62,7 +62,7 @@ docker compose exec -T gateway python -m gateway.combined_healthcheck
 
 ## Synology Container Manager
 
-실행 컨테이너는 **Garmin 1개와 게이트웨이 1개**입니다. NAS에서도 위 실행 파일을 먼저 준비합니다. 게이트웨이 이미지에만 터널 클라이언트가 들어 있으며 초기화 컨테이너는 필요하지 않습니다.
+실행 컨테이너는 **Garmin 1개와 게이트웨이 1개**입니다. NAS에서도 위 실행 파일을 먼저 준비합니다. 게이트웨이 이미지에만 터널 클라이언트가 들어 있으며 초기화 컨테이너는 필요하지 않습니다. Docker 앱에 입력할 **모든 환경변수와 마운트**는 [Synology 직접 실행 안내](deploy/synology/README.md)에 모았습니다.
 
 - 두 컨테이너 모두 마운트한 토큰 파일을 읽을 수 있는 UID/GID로 실행합니다. Garmin NAS의 마지막 정상 실행 값은 `1000:1000`입니다.
 - Garmin: `runtime/garmin/.env` 값을 전달하고 `runtime/garmin/data/tokens`를 `/app/data/tokens`에, 두 내부 토큰 파일을 `docker-compose.yml`에 적힌 경로에 마운트합니다. 컨테이너의 8765 포트를 NAS의 18765 포트에 연결합니다. 수집 API의 8766 포트는 컨테이너 내부에 둡니다.

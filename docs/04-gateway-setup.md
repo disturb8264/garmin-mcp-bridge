@@ -52,8 +52,8 @@ Compose의 `gateway`는 Garmin이 정상 상태가 된 뒤 시작합니다. 게�
 
 ## NAS Container Manager에서 직접 실행할 때
 
-게이트웨이 이미지를 NAS에 전달하거나 게시한 뒤 컨테이너 **한 개**를 만듭니다. 초기화 컨테이너는 만들지 않습니다. `runtime/gateway/.env`의 터널 값을 환경변수로 입력하고, `docker-compose.yml`의 `gateway.environment`에 적힌 `GATEWAY_CONFIG`, `MCP_SERVER_URL`, `MCP_EXTRA_HEADERS`, `MCP_DISCOVERY_EXTRA_HEADERS`, `TZ`도 설정합니다.
+게이트웨이 이미지를 NAS에 전달하거나 게시한 뒤 컨테이너 **한 개**를 만듭니다. 초기화 컨테이너는 만들지 않습니다. Docker 앱의 환경변수에는 [게이트웨이 변수 전체 목록](../deploy/synology/gateway.env.example)을 사용합니다. 이 파일은 터널 값과 Compose가 추가하는 컨테이너 내부 설정을 **한곳에 모은 입력 목록**입니다.
 
-`gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트하고 호스트 네트워크를 선택합니다. 실행 UID/GID는 설정·토큰 파일을 읽을 수 있어야 합니다. `secrets/`는 mode `700`, 토큰 파일은 mode `600`으로 유지합니다. NAS의 실제 Garmin·InBody 포트에 맞춰 `gateway.yaml`의 주소를 수정합니다. 같은 `TUNNEL_ID`를 쓰는 기존 터널 클라이언트는 새 컨테이너를 올리기 전에 중지합니다.
+`gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트하고 호스트 네트워크를 선택합니다. 실행 UID/GID는 설정·토큰 파일을 읽을 수 있어야 합니다. `secrets/`는 mode `700`, 토큰 파일은 mode `600`으로 유지합니다. NAS의 실제 Garmin·InBody 포트에 맞춰 `gateway.yaml`의 주소를 수정합니다. 같은 `TUNNEL_ID`를 쓰는 기존 터널 클라이언트는 새 컨테이너를 올리기 전에 중지합니다. 마운트와 네트워크 설정은 [Synology 직접 실행 안내](../deploy/synology/README.md)의 표에도 정리했습니다.
 
 필요한 파일 목록은 [runtime/gateway 안내](../runtime/gateway/README.md), 토큰 종류는 [02 토큰 준비](02-tokens.md), 전체 연결 구조는 [01 서비스 구조](01-architecture.md)를 참고하세요.
