@@ -56,4 +56,6 @@ Compose의 `gateway`는 Garmin이 정상 상태가 된 뒤 시작합니다. 게�
 
 `gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트하고 호스트 네트워크를 선택합니다. 실행 UID/GID는 설정·토큰 파일을 읽을 수 있어야 합니다. `secrets/`는 mode `700`, 토큰 파일은 mode `600`으로 유지합니다. NAS의 실제 Garmin·InBody 포트에 맞춰 `gateway.yaml`의 주소를 수정합니다. 같은 `TUNNEL_ID`를 쓰는 기존 터널 클라이언트는 새 컨테이너를 올리기 전에 중지합니다. 마운트와 네트워크 설정은 [Synology 직접 실행 안내](../deploy/synology/README.md)의 표에도 정리했습니다.
 
+Docker 앱의 기본 브리지 네트워크에서는 `127.0.0.1`이 게이트웨이 컨테이너 자신을 가리킵니다. 두 하위 MCP가 NAS 호스트의 루프백 포트에 있다면 게이트웨이를 **호스트 네트워크**로 실행해야 합니다. 연결 확인 명령과 실패 시 분기 방법은 [Synology 직접 실행 안내](../deploy/synology/README.md)에 있습니다.
+
 필요한 파일 목록은 [runtime/gateway 안내](../runtime/gateway/README.md), 토큰 종류는 [02 토큰 준비](02-tokens.md), 전체 연결 구조는 [01 서비스 구조](01-architecture.md)를 참고하세요.
