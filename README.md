@@ -2,7 +2,7 @@
 
 이 저장소에서 Docker 이미지 **두 개**를 빌드합니다. Garmin은 수집기와 MCP 서버만 실행하고 터널은 사용하지 않습니다. 게이트웨이는 Garmin과 외부 InBody MCP의 도구를 모아 Secure MCP Tunnel로 제공합니다. 루트 `docker-compose.yml`의 서비스는 `garmin`, `gateway` 두 개뿐입니다.
 
-전체 연결 흐름은 [서비스 구조](docs/architecture.md)에 간단히 그렸습니다.
+전체 연결 흐름은 [01 서비스 구조](docs/01-architecture.md)에, Garmin 설정 순서는 [02 Garmin MCP 설정](docs/02-garmin-setup.md)에 정리했습니다.
 
 ## 폴더 구조
 
@@ -22,10 +22,10 @@ InBody는 이 저장소 밖에서 운영합니다. 기본 게이트웨이 설정
 
 ```sh
 cp .env.example .env
-mkdir -p runtime/garmin runtime/gateway
+mkdir -p runtime/garmin/data/tokens runtime/gateway
 cp services/garmin/.env.example runtime/garmin/.env
 cp services/gateway/.env.example runtime/gateway/.env
-chmod 700 runtime runtime/garmin runtime/gateway
+chmod 700 runtime runtime/garmin runtime/garmin/data runtime/garmin/data/tokens runtime/gateway
 chmod 600 .env runtime/garmin/.env runtime/gateway/.env
 bash services/garmin/scripts/create-mcp-token.sh
 python3 scripts/init-gateway.py
