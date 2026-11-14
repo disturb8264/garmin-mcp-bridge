@@ -10,8 +10,8 @@ from psycopg import sql
 
 
 ROOT = Path(__file__).resolve().parent.parent
-ENV_PATH = ROOT / ".env"
-BACKUP_PATH = ROOT / "data" / "db_admin.env"
+ENV_PATH = ROOT.parent.parent / "runtime" / "garmin" / ".env"
+BACKUP_PATH = ENV_PATH.parent / "data" / "db_admin.env"
 DB_NAME = "garmin_running"
 WRITER = "garmin2_writer"
 READER = "garmin2_reader"

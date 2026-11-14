@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 
 
 ROOT = Path(__file__).resolve().parent.parent
+LOCAL_ENV_PATH = ROOT.parent.parent / "runtime" / "garmin" / ".env"
+ENV_PATH = LOCAL_ENV_PATH if LOCAL_ENV_PATH.is_file() else ROOT / ".env"
 
 
 @dataclass(frozen=True)
@@ -33,7 +35,7 @@ class Config:
 
 
 def load_config() -> Config:
-    load_dotenv(ROOT / ".env")
+    load_dotenv(ENV_PATH)
 
     def db_setting(name: str, fallback: str) -> str:
         return os.getenv(name) or os.getenv(fallback, "")

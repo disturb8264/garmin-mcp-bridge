@@ -8,12 +8,12 @@ import psycopg
 from dotenv import dotenv_values
 from psycopg.rows import dict_row
 
-from app.config import ROOT
+from app.config import ENV_PATH
 
 
 def _setting(name: str, fallback: str = "") -> str:
     # dotenv_values does not export the Garmin credentials to this process.
-    values = dotenv_values(ROOT / ".env")
+    values = dotenv_values(ENV_PATH)
     return str(os.getenv(name) or values.get(name) or fallback)
 
 

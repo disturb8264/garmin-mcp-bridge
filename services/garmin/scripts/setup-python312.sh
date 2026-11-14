@@ -2,19 +2,19 @@
 set -euo pipefail
 
 # Ubuntu 22.04: build a private CPython without changing /usr/bin/python3.
-project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
 python_version="3.12.16"
 python_prefix="$project_root/.python/$python_version"
 python_bin="$python_prefix/bin/python3.12"
 archive_sha256="b5796915dc45ff745cfb4e990a7e7c93d6f546328a102ce31448d69ebc37575c"
 
 if [[ "${EUID}" -eq 0 ]]; then
-    echo "Run as your normal user: bash scripts/setup-python312.sh [--test-auth]" >&2
+    echo "Run as your normal user: bash services/garmin/scripts/setup-python312.sh [--test-auth]" >&2
     echo "The script uses sudo only if build dependencies are missing." >&2
     exit 2
 fi
 if [[ "${1:-}" != "" && "${1:-}" != "--test-auth" ]] || [[ "$#" -gt 1 ]]; then
-    echo "Usage: bash scripts/setup-python312.sh [--test-auth]" >&2
+    echo "Usage: bash services/garmin/scripts/setup-python312.sh [--test-auth]" >&2
     exit 2
 fi
 
@@ -66,10 +66,10 @@ else
 fi
 
 .venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m pip install -r services/garmin/requirements.txt
+PYTHONPATH=services/garmin .venv/bin/python -m unittest discover -s services/garmin/tests -v
 echo "Python 3.12 environment is ready."
 
 if [[ "${1:-}" == "--test-auth" ]]; then
-    .venv/bin/python -m app.main --mode recent --limit 5 --dry-run
+    PYTHONPATH=services/garmin .venv/bin/python -m app.main --mode recent --limit 5 --dry-run
 fi

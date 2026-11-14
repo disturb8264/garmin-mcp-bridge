@@ -9,6 +9,7 @@ from dotenv import dotenv_values
 
 
 ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = ROOT.parent.parent
 
 
 def main() -> None:
@@ -18,8 +19,8 @@ def main() -> None:
     parser.add_argument("--sport", choices=("running", "cycling", "swimming", "multisport", "all"), default="all")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    port = dotenv_values(ROOT / ".env").get("MCP_PORT") or "8765"
-    token = (ROOT / "data" / "mcp_internal_token").read_text(encoding="ascii").strip()
+    port = dotenv_values(PROJECT_ROOT / ".env").get("MCP_PORT") or "8765"
+    token = (PROJECT_ROOT / "runtime" / "garmin" / "data" / "mcp_internal_token").read_text(encoding="ascii").strip()
     parameters = {"start_date": args.start_date, "sport": args.sport}
     if args.end_date:
         parameters["end_date"] = args.end_date

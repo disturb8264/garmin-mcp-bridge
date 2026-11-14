@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-python3 - "$project_root/data/mcp_internal_token" "$project_root/data/collector_internal_token" <<'PY'
+project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
+python3 - "$project_root/runtime/garmin/data/mcp_internal_token" "$project_root/runtime/garmin/data/collector_internal_token" <<'PY'
 import os
 import secrets
 import sys

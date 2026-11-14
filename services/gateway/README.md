@@ -1,0 +1,11 @@
+# MCP Gateway service
+
+This folder is the build context for the gateway image. The image contains the Python gateway and the Secure MCP Tunnel client. Garmin has a separate image and InBody is an external upstream.
+
+The repository root `docker-compose.yml` runs one gateway container. There is no init service. Run `python3 scripts/init-gateway.py` from the repository root before starting a new deployment; it creates the gateway config and token on the host without replacing existing files. Copy the upstreams' active tokens with `sh services/gateway/scripts/copy-upstream-tokens.sh`.
+
+The runtime files are under `runtime/gateway/` and excluded from Git and image builds. The example `gateway.yaml.example` uses Garmin at `127.0.0.1:18765/mcp` and InBody at `127.0.0.1:18766/mcp`. The gateway uses host networking and publishes its own MCP endpoint at `127.0.0.1:18767/mcp`. Every request needs the gateway's `X-MCP-Internal-Token`; each upstream receives only its own token.
+
+The gateway discovers tools at startup and every 60 seconds. Default `allowed_tools: ["*"]` publishes all tools, including data-changing tools. Set specific original tool names in `runtime/gateway/gateway.yaml` to limit exposure. Public names use `garmin_` and `inbody_` prefixes.
+
+See the root [README](../../README.md) for build, runtime, and NAS instructions. Files under `docs/` record the earlier standalone gateway project and are historical.

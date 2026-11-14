@@ -3,7 +3,7 @@ services:
     image: ${GARMIN_IMAGE:-disturb8264/garmin-mcp-bridge:0.3.1}
     pull_policy: never
     user: "${PUID:-1000}:${PGID:-1000}"
-    env_file: .env
+    env_file: runtime/garmin/.env
     environment:
       GARMIN_TOKEN_DIR: /app/data/tokens
       COLLECTOR_TOKEN_FILE: /run/secrets/collector_internal_token
@@ -11,18 +11,15 @@ services:
       MCP_HOST: 0.0.0.0
       MCP_PORT: 8765
       MCP_TOKEN_FILE: /run/secrets/mcp_internal_token
-      MCP_PGHOST: ${PGHOST:-}
-      MCP_PGPORT: ${PGPORT:-5432}
-      MCP_PGDATABASE: ${PGDATABASE:-}
       MCP_COLLECTOR_URL: http://127.0.0.1:8766/collect-range
       MCP_COLLECTOR_TOKEN_FILE: /run/secrets/collector_internal_token
       TZ: ${TZ:-Asia/Seoul}
     volumes:
-      - ./data/tokens:/app/data/tokens
-      - ./data/mcp_internal_token:/run/secrets/mcp_internal_token:ro
-      - ./data/collector_internal_token:/run/secrets/collector_internal_token:ro
+      - ./runtime/garmin/data/tokens:/app/data/tokens
+      - ./runtime/garmin/data/mcp_internal_token:/run/secrets/mcp_internal_token:ro
+      - ./runtime/garmin/data/collector_internal_token:/run/secrets/collector_internal_token:ro
     ports:
-      - "${MCP_BIND_ADDRESS:-127.0.0.1}:${MCP_PORT:-8765}:8765"
+      - "${MCP_BIND_ADDRESS:-127.0.0.1}:${MCP_PORT:-18765}:8765"
     healthcheck:
       test: ["CMD", "python", "-m", "app.combined_healthcheck"]
       interval: 5s
@@ -31,16 +28,6 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-  gateway-init:
-    image: ${GATEWAY_IMAGE:-mcp-gateway:local}
-    pull_policy: never
-    user: "${PUID:-1000}:${PGID:-1000}"
-    environment:
-      GATEWAY_CONFIG: /config/gateway.yaml
-    volumes:
-      - ./gateway:/config
-    command: ["python", "-m", "gateway.bootstrap"]
-
   gateway:
     image: ${GATEWAY_IMAGE:-mcp-gateway:local}
     pull_policy: never
@@ -48,11 +35,9 @@ services:
     depends_on:
       garmin:
         condition: service_healthy
-      gateway-init:
-        condition: service_completed_successfully
     network_mode: host
     user: "${PUID:-1000}:${PGID:-1000}"
-    env_file: gateway/.env
+    env_file: runtime/gateway/.env
     environment:
       GATEWAY_CONFIG: /app/gateway.yaml
       MCP_SERVER_URL: http://127.0.0.1:18767/mcp
@@ -60,8 +45,8 @@ services:
       MCP_DISCOVERY_EXTRA_HEADERS: "X-MCP-Internal-Token: file:/app/secrets/gateway_token"
       TZ: ${TZ:-Asia/Seoul}
     volumes:
-      - ./gateway/gateway.yaml:/app/gateway.yaml:ro
-      - ./gateway/secrets:/app/secrets:ro
+      - ./runtime/gateway/gateway.yaml:/app/gateway.yaml:ro
+      - ./runtime/gateway/secrets:/app/secrets:ro
     healthcheck:
       test: ["CMD", "python", "-m", "gateway.combined_healthcheck"]
       interval: 5s
