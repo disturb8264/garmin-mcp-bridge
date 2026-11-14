@@ -1,4 +1,4 @@
-# 서비스 구조
+# 01. 서비스 구조
 
 이 저장소는 Garmin MCP와 MCP 게이트웨이를 **별도 Docker 이미지 두 개**로 관리합니다. 루트 `docker-compose.yml`에는 `garmin`, `gateway` 두 서비스만 있습니다. InBody MCP와 PostgreSQL은 이 Compose 밖에서 운영합니다.
 

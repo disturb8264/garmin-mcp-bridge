@@ -12,4 +12,4 @@ chmod 700 runtime runtime/garmin runtime/garmin/data runtime/garmin/data/tokens
 chmod 600 runtime/garmin/.env
 ```
 
-첫 로그인은 [Garmin 설정 문서](../../docs/02-garmin-setup.md)의 대화형 dry-run 명령을 사용합니다. DB 자체는 이 폴더에 없으며 별도 PostgreSQL을 사용합니다. `.env`·토큰·활동 데이터는 Git에 올리지 않습니다.
+첫 로그인은 [03 Garmin 설정](../../docs/03-garmin-setup.md)의 대화형 dry-run 명령을 사용합니다. 토큰별 용도는 [02 토큰 준비](../../docs/02-tokens.md)를 참고하세요. DB 자체는 이 폴더에 없으며 별도 PostgreSQL을 사용합니다. `.env`·토큰·활동 데이터는 Git에 올리지 않습니다.

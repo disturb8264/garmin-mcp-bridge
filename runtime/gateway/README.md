@@ -11,4 +11,4 @@
 
 `.env`·`gateway.yaml`·토큰 파일은 Git에 올리지 않습니다. `secrets/`는 실행 UID만 들어갈 수 있게 하고 토큰 파일은 mode `600`으로 유지합니다.
 
-실행 순서와 NAS 설정은 [03 게이트웨이 설정](../../docs/03-gateway-setup.md)을 참고하세요.
+실행 순서와 NAS 설정은 [04 게이트웨이 설정](../../docs/04-gateway-setup.md), 토큰별 용도는 [02 토큰 준비](../../docs/02-tokens.md)를 참고하세요.
