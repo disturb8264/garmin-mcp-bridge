@@ -22,3 +22,6 @@ __pycache__/
 *.sqlite*
 REQUIREMENTS.md
 handoff.md
+gateway/.env
+gateway/gateway.yaml
+gateway/secrets/

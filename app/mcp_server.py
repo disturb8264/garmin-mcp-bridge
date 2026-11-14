@@ -50,19 +50,19 @@ def list_activities(
     limit: Annotated[int, Field(ge=1, le=20)] = 5,
     sport: Literal["all", "running", "cycling", "swimming", "multisport"] = "all",
 ) -> dict[str, Any]:
-    """List up to 20 recent activities, optionally filtered by sport, with distance and key metrics."""
+    """Use for '최근 러닝 5개' or other latest saved activities; sport filters and limit is 1-20 (default 5). Do not use for dates, oldest records, or distance filters; use search_activities instead. No Garmin sync."""
     return _read_query(mcp_data.list_activities, limit, sport)
 
 
 @mcp.tool(annotations=READ_ONLY, structured_output=True)
 def get_activity(activity_id: Annotated[int, Field(gt=0)]) -> dict[str, Any]:
-    """Get one saved activity summary, heart-rate zones, and lap/sample counts by Garmin Activity ID."""
+    """Use for '이 운동의 심박·거리 분석' when activity_id is known: saved summary, HR zones, and lap/sample counts. Use get_activity_laps for lap splits or get_activity_samples for time-series; do not fetch them for a summary alone."""
     return _read_query(mcp_data.activity_details, activity_id)
 
 
 @mcp.tool(annotations=READ_ONLY, structured_output=True)
 def get_activity_laps(activity_id: Annotated[int, Field(gt=0)]) -> dict[str, Any]:
-    """Get ordered lap splits for a saved activity by Garmin Activity ID."""
+    """Use for '이 러닝의 구간별 페이스' with a known activity_id; returns ordered saved laps. Use get_activity for the overall summary; do not use laps for second-by-second samples or GPS routes."""
     return _read_query(mcp_data.activity_laps, activity_id)
 
 
@@ -72,13 +72,13 @@ def get_activity_samples(
     offset: Annotated[int, Field(ge=0)] = 0,
     limit: Annotated[int, Field(ge=1, le=200)] = 100,
 ) -> dict[str, Any]:
-    """Get a bounded page of original time-series samples; use next_offset for more."""
+    """Use only for sample-level questions such as '이 활동의 심박 165 이상 구간' with a known activity_id. Returns saved time-series, not GPS coordinates; offset starts at 0, limit is 1-200 (default 100), and next_offset pages more. Large output: do not page whole activities for summaries or GPS routes; use get_activity, get_activity_laps, or get_activity_route for those needs."""
     return _read_query(mcp_data.activity_samples, activity_id, offset, limit)
 
 
 @mcp.tool(annotations=READ_ONLY, structured_output=True)
 def get_sync_status() -> dict[str, Any]:
-    """Get the last collector run and newest saved activity to check data freshness."""
+    """Use for '방금 한 운동이 수집됐어?' to check the last Garmin collector run and newest saved activity. It does not collect data; do not call before routine historical searches or use it for activity details."""
     return _read_query(mcp_data.sync_status)
 
 
@@ -96,7 +96,7 @@ def search_activities(
     offset: Annotated[int, Field(ge=0, le=100000)] = 0,
     limit: Annotated[int, Field(ge=1, le=100)] = 20,
 ) -> dict[str, Any]:
-    """Search saved activities with filters, sort order, and bounded pages; never calls Garmin."""
+    """Use for '첫 수영 기록'(sport=swimming, sort=oldest, limit=1), '2016년 사이클', or distance-filtered activities. Dates are inclusive local YYYY-MM-DD; distance is m, duration is s; sort=newest/oldest orders dates descending/ascending, distance/duration orders values descending. offset and limit (1-100, default 20) page results. Saved DB only: first saved record is not proven sport start; whole-activity times are not exact-distance split PBs. For totals use get_sport_history; do not call the collecting date tool for saved-only searches."""
     return _read_query(mcp_analysis.search_activities, sport, start_date, end_date, name,
                        min_distance_m, max_distance_m, min_duration_s, max_duration_s,
                        sort, offset, limit)
@@ -111,7 +111,7 @@ def get_sport_history(
     period_offset: Annotated[int, Field(ge=0, le=100000)] = 0,
     period_limit: Annotated[int, Field(ge=1, le=120)] = 120,
 ) -> dict[str, Any]:
-    """Summarize saved sport history in PostgreSQL, including first recorded date and grouped totals."""
+    """Use for '지난달 총 몇 km 뛰었어?' or '연도별 수영 거리': SQL summary, first/last saved date, totals, best saved activity, and grouped periods. Inclusive local YYYY-MM-DD dates; group_by=year/month/week, period_offset and period_limit (1-120) page periods. Do not use for only the first saved activity (search_activities oldest, limit=1) or pace/HR changes (get_sport_progress). Coverage limits claims about actual sport start; no Garmin sync."""
     return _read_query(mcp_analysis.get_sport_history, sport, start_date, end_date,
                        group_by, period_offset, period_limit)
 
@@ -125,7 +125,7 @@ def get_sport_progress(
     period_offset: Annotated[int, Field(ge=0, le=100000)] = 0,
     period_limit: Annotated[int, Field(ge=1, le=120)] = 120,
 ) -> dict[str, Any]:
-    """Analyze saved activity trends with arithmetic and distance-weighted metrics and missing-data counts."""
+    """Use for '최근 3개월 러닝 페이스가 좋아졌어?' or monthly HR/power trends. Inclusive local YYYY-MM-DD dates; group_by=year/month/week, period_offset and period_limit (1-120) page SQL summaries. Distinguishes arithmetic vs distance-weighted averages and missing metrics. Do not use for totals/first date (get_sport_history), raw samples, or exact splits; saved DB only, so check coverage."""
     return _read_query(mcp_analysis.get_sport_progress, sport, start_date, end_date,
                        group_by, period_offset, period_limit)
 
@@ -136,7 +136,7 @@ def get_activity_route(
     sample_interval: Annotated[int | None, Field(ge=1, le=10000)] = None,
     max_points: Annotated[int, Field(ge=2, le=1000)] = 500,
 ) -> dict[str, Any]:
-    """Get a bounded page of saved GPS points for an activity; reports missing GPS explicitly."""
+    """Use for '이 활동의 GPS 경로' with a known activity_id. Returns saved coordinates and metrics or explicit no-GPS status; max_points is 2-1000 (default 500), sample_interval is optional sample-index stride. GPS output can be large: request fewer points for an overview. Do not use raw routes for registered course rankings; use get_segment_best_efforts. No Garmin sync."""
     return _read_query(mcp_route.get_activity_route, activity_id, sample_interval, max_points)
 
 
@@ -149,7 +149,7 @@ def get_segment_best_efforts(
     end_date: str | None = None,
     limit: Annotated[int, Field(ge=1, le=50)] = 10,
 ) -> dict[str, Any]:
-    """Rank cached complete GPS passes of a user-defined segment; never estimates from non-GPS data."""
+    """Use for '남산 업힐 최고 기록' only after that running/cycling segment is registered and indexed. Provide exactly one of segment_id or segment_name plus sport; inclusive local YYYY-MM-DD dates and limit 1-50 (default 10) bound cached GPS pass rankings. If indexing_required, use refresh_segment. Do not infer a PB from missing GPS or use this for a whole-activity record."""
     return _read_query(segment_store.get_segment_best_efforts,
                        segment_id, segment_name, sport, start_date, end_date, limit)
 
@@ -165,7 +165,7 @@ async def register_segment(
     radius_m: Annotated[float, Field(ge=5, le=200)] = 30,
     waypoints: list[dict[str, float]] | None = None,
 ) -> dict[str, Any]:
-    """Register a start, optional ordered waypoints, and end supplied by the user."""
+    """Use when asked to define a running/cycling course, e.g. '이 좌표로 남산 구간 등록', with user-supplied start/end coordinates. radius_m is checkpoint tolerance 5-200m (default 30); optional waypoints are up to 8 ordered latitude/longitude pairs. Writes a segment definition, not efforts: do not guess coordinates or call for a ranking; index afterward with refresh_segment."""
     try:
         return await segment_tool.register_segment(name, sport, start_latitude, start_longitude,
                                                    end_latitude, end_longitude, radius_m, waypoints)
@@ -178,7 +178,7 @@ async def refresh_segment(
     segment_id: Annotated[int, Field(gt=0)],
     batch_size: Annotated[int, Field(ge=1, le=20)] = 10,
 ) -> dict[str, Any]:
-    """Index a bounded batch of saved GPS activities for a registered segment; no Garmin calls."""
+    """Use after register_segment or when get_segment_best_efforts says indexing_required, e.g. '등록한 구간 기록 계산해줘'. segment_id identifies the course; batch_size 1-20 (default 10) bounds one indexing pass, so repeat only while pending. Writes cached efforts from saved GPS, without Garmin API; do not call for routine rankings or during active collection."""
     try:
         return await segment_tool.refresh_segment(segment_id, batch_size)
     except (httpx.HTTPError, ValueError, RuntimeError, OSError):
@@ -191,7 +191,7 @@ async def get_activities_by_date(
     end_date: str | None = None,
     sport: Literal["running", "cycling", "swimming", "multisport", "all"] = "all",
 ) -> dict[str, Any]:
-    """Get activities by inclusive local dates; collect missing date ranges from Garmin when needed."""
+    """Use for '어제 운동 뭐 했어?' when a local YYYY-MM-DD date is known; start_date/end_date are inclusive and sport filters results. Reads saved PostgreSQL first, but uncovered dates can trigger external Garmin collection. For historical saved-only date/range searches use search_activities; do not use this merely to refresh data or before every other query."""
     try:
         return await asyncio.wait_for(
             date_tool.get_activities_by_date(start_date, end_date, sport), timeout=115

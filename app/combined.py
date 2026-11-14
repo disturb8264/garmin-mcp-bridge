@@ -1,4 +1,4 @@
-"""Run the private collector and MCP server, with an optional tunnel."""
+"""Run the private collector and MCP server."""
 
 import os
 import signal
@@ -11,25 +11,11 @@ import time
 COMMANDS = (
     ("collector", [sys.executable, "-m", "app.collector_api"]),
     ("mcp", [sys.executable, "-m", "app.mcp_server"]),
-    ("tunnel", ["/usr/bin/tunnel-client", "run"]),
 )
 
 
-def tunnel_enabled() -> bool:
-    value = os.getenv("TUNNEL_ENABLED", "true").strip().lower()
-    if value in ("true", "1", "yes", "on"):
-        return True
-    if value in ("false", "0", "no", "off"):
-        return False
-    raise ValueError("TUNNEL_ENABLED must be true or false")
-
-
-def enabled_commands():
-    return COMMANDS if tunnel_enabled() else COMMANDS[:2]
-
-
 def main() -> None:
-    commands = enabled_commands()
+    commands = COMMANDS
     collector_port = int(os.getenv("COLLECTOR_API_PORT", "8766"))
     mcp_port = int(os.getenv("MCP_PORT", "8765"))
     os.environ.setdefault("MCP_COLLECTOR_URL", f"http://127.0.0.1:{collector_port}/collect-range")
@@ -44,7 +30,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     try:
-        for name, command in commands[:2]:
+        for name, command in commands:
             processes.append((name, subprocess.Popen(command, start_new_session=True)))
         deadline = time.monotonic() + 30
         while not stopping and time.monotonic() < deadline:
@@ -69,8 +55,6 @@ def main() -> None:
                 raise RuntimeError(f"Collector on {collector_port} or MCP server on {mcp_port} did not become ready")
         if stopping:
             return
-        for name, command in commands[2:]:
-            processes.append((name, subprocess.Popen(command, start_new_session=True)))
         while not stopping:
             for name, process in processes:
                 code = process.poll()

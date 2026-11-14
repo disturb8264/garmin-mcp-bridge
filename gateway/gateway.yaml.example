@@ -1,0 +1,13 @@
+listen_host: 127.0.0.1
+listen_port: 18767
+gateway_token_file: secrets/gateway_token
+refresh_seconds: 60
+upstreams:
+  - id: inbody
+    url: http://127.0.0.1:18766/mcp
+    token_file: secrets/inbody_token
+    allowed_tools: ["*"]
+  - id: garmin
+    url: http://127.0.0.1:18765/mcp
+    token_file: secrets/garmin_token
+    allowed_tools: ["*"]
