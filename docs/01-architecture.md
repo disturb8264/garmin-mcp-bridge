@@ -21,4 +21,4 @@ Garmin 컨테이너는 수집기와 MCP 서버를 실행하며 터널 클라이�
 | `runtime/garmin/`, `runtime/gateway/` | 실행 설정·토큰·데이터. 안내 문서만 Git 포함 |
 | `scripts/create-gateway-token.py` | 게이트웨이 자체 토큰을 호스트에서 생성. 별도 컨테이너 없음 |
 
-게이트웨이는 호스트 네트워크에서 기본적으로 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결합니다. 실제 배포 주소는 `runtime/gateway/gateway.yaml`에서 정합니다. 실행 방법과 NAS 설정은 루트 [README](../README.md)를 참고하세요.
+기본 구성은 게이트웨이와 두 하위 MCP가 같은 호스트에 있어, 게이트웨이가 호스트 네트워크에서 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결합니다. 다른 서버에 있는 MCP는 `runtime/gateway/gateway.yaml`에 HTTPS URL을 지정합니다. 네트워크 모드는 루트 `.env`의 `GATEWAY_NETWORK_MODE`로 선택합니다. 실행 방법과 NAS 설정은 루트 [README](../README.md)를 참고하세요.

@@ -35,7 +35,7 @@ services:
     depends_on:
       garmin:
         condition: service_healthy
-    network_mode: host
+    network_mode: ${GATEWAY_NETWORK_MODE:-host}
     user: "${PUID:-1000}:${PGID:-1000}"
     env_file: runtime/gateway/.env
     environment:

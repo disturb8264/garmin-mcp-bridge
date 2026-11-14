@@ -16,7 +16,7 @@
 | `runtime/gateway/` | 게이트웨이 `.env`, `gateway.yaml`, 토큰 복사본. 실행 파일은 Git 제외 |
 | `docs/archive/` | 이전 배포 안내. 현재 경로에는 적용되지 않음 |
 
-InBody는 이 저장소 밖에서 운영합니다. 기본 게이트웨이 설정은 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결하며, 게이트웨이 자체는 `127.0.0.1:18767/mcp`에서 수신합니다. 다른 호스트에 배포할 때는 `runtime/gateway/gateway.yaml`의 하위 서버 주소를 실제 주소로 바꿉니다.
+InBody는 이 저장소 밖에서 운영합니다. 기본 설정은 두 하위 MCP가 같은 호스트에 있을 때를 가정해 Garmin `127.0.0.1:18765/mcp`, InBody `127.0.0.1:18766/mcp`에 연결합니다. 이때 게이트웨이는 호스트 네트워크를 사용합니다. 다른 서버의 MCP에 연결할 때는 `runtime/gateway/gateway.yaml`의 URL을 실제 HTTPS 주소로 바꿉니다. 게이트웨이의 네트워크 모드는 루트 `.env`의 `GATEWAY_NETWORK_MODE`로 `host` 또는 `bridge`를 선택할 수 있습니다.
 
 실행 파일별 생성 방법은 [runtime 안내](runtime/README.md)에 정리했습니다.
 
@@ -66,7 +66,7 @@ docker compose exec -T gateway python -m gateway.combined_healthcheck
 
 - 두 컨테이너 모두 마운트한 토큰 파일을 읽을 수 있는 UID/GID로 실행합니다. Garmin NAS의 마지막 정상 실행 값은 `1000:1000`입니다.
 - Garmin: `runtime/garmin/.env` 값을 전달하고 `runtime/garmin/data/tokens`를 `/app/data/tokens`에, 두 내부 토큰 파일을 `docker-compose.yml`에 적힌 경로에 마운트합니다. 컨테이너의 8765 포트를 NAS의 18765 포트에 연결합니다. 수집 API의 8766 포트는 컨테이너 내부에 둡니다.
-- 게이트웨이: `runtime/gateway/.env` 값을 전달하고 `gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트합니다. Garmin·InBody의 호스트 포트에 닿도록 호스트 네트워크를 사용합니다. 추가 환경변수는 `docker-compose.yml`의 `gateway.environment`를 따릅니다.
+- 게이트웨이: `runtime/gateway/.env` 값을 전달하고 `gateway.yaml`을 `/app/gateway.yaml:ro`, `secrets/`를 `/app/secrets:ro`로 마운트합니다. 같은 NAS의 `127.0.0.1` 포트에 연결할 때는 호스트 네트워크를 사용합니다. 다른 서버의 HTTPS MCP에만 연결할 때는 브리지 네트워크도 사용할 수 있습니다. 추가 환경변수는 `docker-compose.yml`의 `gateway.environment`를 따릅니다.
 - `gateway.yaml`의 Garmin·InBody 주소를 NAS의 실제 주소로 확인합니다. 같은 터널 ID를 쓰는 기존 클라이언트와 새 클라이언트를 동시에 실행하지 않습니다.
 
 로컬 빌드한 `disturb8264/garmin-mcp:0.4.0`, `disturb8264/mcp-gateway:0.4.0` 이미지는 레지스트리에 게시하지 않았습니다. NAS에는 두 이미지를 각각 전달하거나 게시한 뒤 배포합니다. 이 저장소의 폴더 변경으로 기존 NAS 컨테이너가 바뀌지는 않습니다.
