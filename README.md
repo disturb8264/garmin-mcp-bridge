@@ -2,6 +2,8 @@
 
 이 저장소에서 Docker 이미지 **두 개**를 빌드합니다. Garmin은 수집기와 MCP 서버만 실행하고 터널은 사용하지 않습니다. 게이트웨이는 Garmin과 외부 InBody MCP의 도구를 모아 Secure MCP Tunnel로 제공합니다. 루트 `docker-compose.yml`의 서비스는 `garmin`, `gateway` 두 개뿐입니다.
 
+전체 연결 흐름은 [서비스 구조](docs/architecture.md)에 간단히 그렸습니다.
+
 ## 폴더 구조
 
 | 경로 | 용도 |
