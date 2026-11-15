@@ -24,21 +24,28 @@ from app.garmin_client import (
 
 
 def run(start_text: str, end_text: str) -> dict:
+    stage = "validation"
     try:
         start, end = validate_range(start_text, end_text)
+        stage = "configuration"
         config = load_config()
         if not config.db_ready:
             return {"status": "database_error", "message": "Collector database is not configured"}
+        stage = "authentication"
         reader = GarminReader(config)
         reader.login()
+        stage = "database_connection"
         with database.connect(config, statement_timeout_ms=10000) as conn:
+            stage = "database_schema"
             database.ensure_schema(conn)
+            stage = "collection"
             found, saved, failed = collect(
                 reader, "range", 0, start, end, False, conn, config.lookback_days,
                 strict=True,
             )
             if failed:
                 return {"status": "api_error", "message": "One or more Garmin activities failed to collect"}
+            stage = "coverage"
             database.mark_date_coverage(conn, start, end)
         return {"status": "success", "found_count": found, "saved_count": saved}
     except (GarminAuthError, MFARequired, GarminConnectAuthenticationError):
@@ -51,7 +58,10 @@ def run(start_text: str, end_text: str) -> dict:
         return {"status": "timeout", "message": "Garmin or database operation timed out"}
     except psycopg.Error:
         return {"status": "database_error", "message": "Collector database operation failed"}
-    except Exception:
+    except Exception as exc:
+        # Only fixed stage names and the exception class reach container logs.
+        # Exception messages from clients may contain credentials or request data.
+        print(f"collector_failure stage={stage} error_type={type(exc).__name__}", file=sys.stderr)
         return {"status": "api_error", "message": "Garmin activity collection failed"}
 
 

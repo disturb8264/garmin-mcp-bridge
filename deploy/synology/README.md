@@ -5,6 +5,8 @@ Compose를 사용하지 않고 Docker 앱에서 컨테이너를 직접 만들 �
 - [Garmin 환경변수 전체 목록](garmin.env.example)
 - [게이트웨이 환경변수 전체 목록](gateway.env.example)
 
+Garmin을 직접 실행할 때는 로컬 Python용 `runtime/garmin/.env`를 그대로 입력하지 말고 위 NAS 목록의 `GARMIN_TOKEN_DIR=/app/data/tokens`를 사용합니다. `GARMIN_EMAIL`에는 이메일 주소만 입력하며 값 앞에 `=`가 붙지 않았는지 확인합니다. 경로가 로컬용 상대 경로로 남거나 이메일 값이 잘못되면 Garmin 인증과 날짜별 수집이 실패합니다. 계정 값은 로그나 채팅에 출력하지 않습니다.
+
 루트 `.env`의 `GARMIN_IMAGE`, `GATEWAY_IMAGE`, `PUID`, `PGID`, `MCP_BIND_ADDRESS`는 **Compose 설정**입니다. Docker 앱에서는 이미지, 실행 사용자, 포트·네트워크를 화면에서 직접 지정합니다. `PUID`·`PGID`를 환경변수로만 넣어도 실행 UID/GID가 바뀌지 않습니다.
 
 | 컨테이너 | 실행 사용자·네트워크 | 마운트 | 포트 |
@@ -13,6 +15,8 @@ Compose를 사용하지 않고 Docker 앱에서 컨테이너를 직접 만들 �
 | 게이트웨이 | 설정·토큰 파일을 읽을 수 있는 UID/GID. 같은 NAS의 루프백 MCP에는 호스트 네트워크, 다른 서버의 MCP에는 브리지도 가능 | `runtime/gateway/gateway.yaml` → `/app/gateway.yaml:ro`; `runtime/gateway/secrets` → `/app/secrets:ro` | 터널만 사용하면 별도 포트 매핑 없음. 호스트 네트워크에서는 `127.0.0.1:18767/mcp` 사용 |
 
 Garmin을 먼저 시작해 정상 상태를 확인한 뒤 게이트웨이를 시작합니다. `gateway.yaml`의 Garmin·InBody URL은 NAS에서 실제 접근 가능한 주소로 수정합니다. 같은 터널 ID를 쓰는 기존 터널 클라이언트는 새 게이트웨이 시작 전에 중지합니다. 토큰 생성과 복사 방법은 [02 토큰 준비](../../docs/02-tokens.md), 각 서비스 절차는 [03 Garmin 설정](../../docs/03-garmin-setup.md)과 [04 게이트웨이 설정](../../docs/04-gateway-setup.md)을 참고하세요.
+
+날짜별 수집에서 `Garmin activity collection failed`가 나오면 Garmin 컨테이너 터미널에서 `python -c "from app.config import load_config; c=load_config(); print(c.token_dir, c.token_exists)"`로 실제 토큰 경로를 확인합니다. `/app/data/tokens`가 아니라면 Container Manager 환경변수를 수정하고 컨테이너를 재생성합니다. 토큰 파일이 없다면 계정 설정을 확인한 뒤 대화형 터미널에서 첫 로그인을 진행합니다.
 
 **위 기본 `gateway.yaml`처럼 두 하위 MCP URL이 `127.0.0.1`이면 게이트웨이를 호스트 모드로 지정합니다.** 브리지 모드에서 `127.0.0.1`은 NAS가 아니라 게이트웨이 컨테이너 자신입니다. 컨테이너 터미널에서 다음 명령의 결과가 두 포트 모두 `0`인지 확인합니다.
 

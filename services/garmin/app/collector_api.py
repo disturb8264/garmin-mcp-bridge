@@ -3,7 +3,9 @@
 import asyncio
 import hmac
 import json
+import logging
 import os
+import re
 import stat
 import sys
 from pathlib import Path
@@ -19,6 +21,8 @@ from app import segment_store
 
 
 WORKER_TIMEOUT_SECONDS = 80
+LOG = logging.getLogger(__name__)
+SAFE_WORKER_ERROR = re.compile(r"^collector_failure stage=[a-z_]+ error_type=[A-Za-z_][A-Za-z_0-9]*$")
 
 
 def load_token() -> str:
@@ -52,10 +56,10 @@ def create_app(token: str | None = None) -> Starlette:
             sys.executable, "-m", "app.collect_range_worker",
             start.isoformat(), end.isoformat(),
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
         )
         try:
-            output, _ = await asyncio.wait_for(process.communicate(), WORKER_TIMEOUT_SECONDS)
+            output, errors = await asyncio.wait_for(process.communicate(), WORKER_TIMEOUT_SECONDS)
         except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
             process.kill()
             await process.wait()
@@ -68,6 +72,9 @@ def create_app(token: str | None = None) -> Starlette:
                 raise ValueError
         except (ValueError, TypeError):
             return JSONResponse({"status": "api_error", "message": "Collector worker failed"})
+        for line in errors.decode("utf-8", "replace").splitlines():
+            if SAFE_WORKER_ERROR.fullmatch(line):
+                LOG.error("%s", line)
         return JSONResponse(result)
 
     async def register_segment(request: Request):

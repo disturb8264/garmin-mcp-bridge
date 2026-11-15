@@ -1,5 +1,7 @@
 import unittest
 import os
+from contextlib import redirect_stderr
+from io import StringIO
 from unittest.mock import AsyncMock, patch
 
 import httpx2
@@ -105,6 +107,15 @@ class RangeValidationTests(unittest.TestCase):
 
 
 class WorkerErrorTests(unittest.TestCase):
+    def test_unexpected_error_logs_safe_stage_and_type(self):
+        output = StringIO()
+        with patch("app.collect_range_worker.GarminReader") as reader, redirect_stderr(output):
+            reader.return_value.login.side_effect = PermissionError("private details")
+            result = run_worker("2025-10-29", "2025-10-29")
+        self.assertEqual(result["message"], "Garmin activity collection failed")
+        self.assertIn("stage=authentication error_type=PermissionError", output.getvalue())
+        self.assertNotIn("private details", output.getvalue())
+
     def test_collector_reuses_mcp_database_settings_when_writer_settings_absent(self):
         settings = {
             "MCP_PGHOST": "database", "MCP_PGPORT": "5433",
