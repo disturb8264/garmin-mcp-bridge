@@ -112,6 +112,7 @@ class Registry:
     def __init__(self, upstreams: list[Upstream]):
         self.upstreams = {s.id: s for s in upstreams}
         self.tools: dict[str, tuple[Upstream, str, types.Tool]] = {}
+        self.resources: dict[str, tuple[Upstream, types.Resource]] = {}
         self.status = {s.id: {"connected": False, "last_refresh": None, "error": None}
                        for s in upstreams}
         self.lock = asyncio.Lock()
@@ -150,13 +151,45 @@ class Registry:
                     raise ValueError(f"duplicate tool: {public_name}")
                 public_tool = tool.model_copy(update={"name": public_name})
                 new[public_name] = (upstream, tool.name, public_tool)
+            ui_uris = {
+                uri
+                for _, _, tool in new.values()
+                if isinstance(tool.meta, dict)
+                for ui in [tool.meta.get("ui")]
+                if isinstance(ui, dict)
+                for uri in [ui.get("resourceUri")]
+                if isinstance(uri, str)
+            }
+            new_resources = {}
+            if ui_uris:
+                async with self.session(upstream) as session:
+                    cursor = None
+                    while True:
+                        result = await asyncio.wait_for(
+                            session.list_resources(params=types.PaginatedRequestParams(cursor=cursor)
+                                                   if cursor else None), timeout=15,
+                        )
+                        for resource in result.resources:
+                            uri = str(resource.uri)
+                            if uri in ui_uris:
+                                new_resources[uri] = (upstream, resource)
+                        cursor = result.next_cursor
+                        if not cursor:
+                            break
+                if ui_uris - new_resources.keys():
+                    raise ValueError(f"missing UI resources for {upstream.id}")
             async with self.lock:
                 remaining = {name: entry for name, entry in self.tools.items()
                              if entry[0].id != upstream.id}
                 conflicts = remaining.keys() & new.keys()
                 if conflicts:
                     raise ValueError(f"public tool collision: {sorted(conflicts)}")
+                remaining_resources = {uri: entry for uri, entry in self.resources.items()
+                                       if entry[0].id != upstream.id}
+                if remaining_resources.keys() & new_resources.keys():
+                    raise ValueError("UI resource collision")
                 self.tools = {**remaining, **new}
+                self.resources = {**remaining_resources, **new_resources}
                 self.status[upstream.id] = {"connected": True, "last_refresh": time.time(), "error": None}
             LOG.info("refreshed upstream=%s tools=%d", upstream.id, len(new))
         except Exception as exc:
@@ -170,6 +203,18 @@ class Registry:
     async def list_tools(self, _ctx, _params):
         async with self.lock:
             return types.ListToolsResult(tools=[entry[2] for entry in self.tools.values()])
+
+    async def list_resources(self, _ctx, _params):
+        async with self.lock:
+            return types.ListResourcesResult(resources=[entry[1] for entry in self.resources.values()])
+
+    async def read_resource(self, _ctx, params: types.ReadResourceRequestParams):
+        async with self.lock:
+            entry = self.resources.get(str(params.uri))
+        if entry is None:
+            raise ValueError("resource_unavailable")
+        async with self.session(entry[0]) as session:
+            return await asyncio.wait_for(session.read_resource(str(params.uri)), timeout=15)
 
     async def call_tool(self, _ctx, params: types.CallToolRequestParams):
         async with self.lock:
@@ -214,7 +259,9 @@ def create_app(config_path: Path):
     config, upstreams, token = load_config(config_path)
     registry = Registry(upstreams)
     server = Server("mcp-gateway", on_list_tools=registry.list_tools,
-                    on_call_tool=registry.call_tool)
+                    on_call_tool=registry.call_tool,
+                    on_list_resources=registry.list_resources,
+                    on_read_resource=registry.read_resource)
     manager = StreamableHTTPSessionManager(server, json_response=True, stateless=True)
     interval = max(10, int(config.get("refresh_seconds", 60)))
 
