@@ -15,3 +15,5 @@
 실행 순서와 NAS 설정은 [04 게이트웨이 설정](../../docs/04-gateway-setup.md), 토큰별 용도는 [02 토큰 준비](../../docs/02-tokens.md)를 참고하세요.
 
 다른 MCP 서버를 등록하는 방법은 [05 외부 MCP 추가](../../docs/05-add-upstream-mcp.md)에 있습니다.
+
+Geo Route의 UI 리소스를 사용하려면 Gateway `0.4.2`와 Geo Route `0.3.1`을 준비하고, 실제 접근 가능한 URL과 활성 토큰을 등록합니다. NAS 적용과 검증 절차는 [06 Geo Route UI 적용·확인](../../docs/06-geo-route-ui-nas.md)을 참고하세요.

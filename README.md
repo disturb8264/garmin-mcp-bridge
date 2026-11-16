@@ -2,7 +2,7 @@
 
 이 저장소에서 Docker 이미지 **두 개**를 빌드합니다. Garmin은 수집기와 MCP 서버만 실행하고 터널은 사용하지 않습니다. 게이트웨이는 Garmin·InBody와 추가 MCP의 도구를 모아 Secure MCP Tunnel로 제공합니다. 루트 `docker-compose.yml`의 서비스는 `garmin`, `gateway` 두 개뿐입니다.
 
-문서는 [01 서비스 구조](docs/01-architecture.md) → [02 토큰 준비](docs/02-tokens.md) → [03 Garmin MCP 설정](docs/03-garmin-setup.md) → [04 게이트웨이 설정](docs/04-gateway-setup.md) → [05 외부 MCP 추가](docs/05-add-upstream-mcp.md) 순서로 읽으면 됩니다.
+문서는 [01 서비스 구조](docs/01-architecture.md) → [02 토큰 준비](docs/02-tokens.md) → [03 Garmin MCP 설정](docs/03-garmin-setup.md) → [04 게이트웨이 설정](docs/04-gateway-setup.md) → [05 외부 MCP 추가](docs/05-add-upstream-mcp.md) 순서로 읽으면 됩니다. Geo Route 이미지 뷰어를 NAS에 적용할 때는 [06 Geo Route UI 적용·확인](docs/06-geo-route-ui-nas.md)을 함께 봅니다.
 
 ## 폴더 구조
 
@@ -70,6 +70,8 @@ docker compose exec -T gateway python -m gateway.combined_healthcheck
 - `gateway.yaml`의 Garmin·InBody 주소를 NAS의 실제 주소로 확인합니다. 같은 터널 ID를 쓰는 기존 클라이언트와 새 클라이언트를 동시에 실행하지 않습니다.
 
 현재 예제 이미지 태그는 Garmin `disturb8264/garmin-mcp:0.4.1`, 게이트웨이 `disturb8264/mcp-gateway:0.4.2`입니다. 게이트웨이 0.4.2는 MCP App UI 리소스의 `resources/list`와 `resources/read` 중계를 추가합니다. NAS에는 선택한 태그의 이미지를 내려받고 컨테이너를 재생성해 적용합니다. 설정 파일만 바꿀 때는 게이트웨이 컨테이너 재시작으로 적용할 수 있습니다.
+
+Geo Route `0.3.1`과 Gateway `0.4.2`의 로컬 Docker 경유 UI 리소스·PNG 검증은 끝났습니다. **NAS 이미지 교체, Geo Route 등록, 터널 경유 ChatGPT 화면 검증은 아직 완료되지 않았습니다.**
 
 ## 로컬 테스트
 

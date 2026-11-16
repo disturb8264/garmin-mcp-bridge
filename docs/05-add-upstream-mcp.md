@@ -1,10 +1,10 @@
 # 05. 외부 MCP 추가
 
-게이트웨이에 다른 MCP 서버를 연결할 때는 `runtime/gateway/gateway.yaml`에 하위 서버를 등록합니다. **게이트웨이 이미지 0.4.1 이상이라면 호환되는 서버를 추가할 때 이미지 재빌드 없이 설정 수정과 재시작만** 필요합니다. 아래 명령은 저장소 루트에서 실행합니다.
+게이트웨이에 다른 MCP 서버를 연결할 때는 `runtime/gateway/gateway.yaml`에 하위 서버를 등록합니다. 일반 도구는 게이트웨이 이미지 `0.4.1` 이상에서 설정 수정과 재시작만으로 추가할 수 있습니다. **MCP App UI 리소스를 쓰는 서버는 `0.4.2` 이상**이 필요합니다. 아래 명령은 저장소 루트에서 실행합니다.
 
 ## 연결 가능한 서버
 
-현재 게이트웨이는 HTTP 기반 Streamable MCP의 **도구(`tools/list`, `tools/call`)**를 중계합니다. 새 서버는 `X-MCP-Internal-Token` 헤더로 인증해야 하며, 게이트웨이에 해당 서버의 **활성 토큰** 파일이 있어야 합니다. `Authorization: Bearer`만 검사하는 서버는 인증 헤더를 맞춰야 합니다. 원격 호스트에는 HTTPS를 권장합니다. 사설망 IPv4 주소의 HTTP는 서버 항목에 `allow_private_http: true`를 명시하면 사용할 수 있습니다. 이 경우 토큰과 데이터가 네트워크에서 암호화되지 않습니다. 원격 서버에 연결할 때는 브리지 네트워크도 사용할 수 있습니다. stdio 전용 서버나 OAuth 등 다른 인증 방식의 서버는 현재 설정만으로 등록할 수 없습니다.
+현재 게이트웨이는 HTTP 기반 Streamable MCP의 **도구(`tools/list`, `tools/call`)**와 허용된 도구가 참조하는 **MCP App UI 리소스(`resources/list`, `resources/read`)**를 중계합니다. 일반 리소스 전체와 프롬프트는 중계하지 않습니다. 새 서버는 `X-MCP-Internal-Token` 헤더로 인증해야 하며, 게이트웨이에 해당 서버의 **활성 토큰** 파일이 있어야 합니다. `Authorization: Bearer`만 검사하는 서버는 인증 헤더를 맞춰야 합니다. 원격 호스트에는 HTTPS를 권장합니다. 사설망 IPv4 주소의 HTTP는 서버 항목에 `allow_private_http: true`를 명시하면 사용할 수 있습니다. 이 경우 토큰과 데이터가 네트워크에서 암호화되지 않습니다. 원격 서버에 연결할 때는 브리지 네트워크도 사용할 수 있습니다. stdio 전용 서버나 OAuth 등 다른 인증 방식의 서버는 현재 설정만으로 등록할 수 없습니다.
 
 ## 1. 하위 서버 토큰 준비
 
@@ -42,6 +42,8 @@ install -m 600 /실제/서버/활성/토큰/경로 runtime/gateway/secrets/examp
 ```
 
 게이트웨이 컨테이너에서 `secrets/echo_token`을 `/app/secrets/echo_token`으로 읽을 수 있어야 합니다. 이 설정으로 공개되는 이름은 `echo_echo`입니다. `allow_private_http`는 게이트웨이 이미지 `0.4.1` 이상에서 지원합니다. 이전 이미지를 사용 중이면 새 이미지를 내려받고 **컨테이너를 재생성**해야 합니다. 이미지 태그만 바꾸거나 기존 컨테이너를 재시작해도 실행 중인 코드가 바뀌지 않습니다.
+
+Geo Route처럼 MCP App UI 리소스가 필요한 서버는 [06 Geo Route UI 적용·확인](06-geo-route-ui-nas.md)을 따릅니다. Gateway `0.4.2`의 도구 목록 갱신 로그만으로 UI 리소스 읽기까지 성공했다고 판단하지 않습니다.
 
 ## 3. 게이트웨이 재시작과 확인
 

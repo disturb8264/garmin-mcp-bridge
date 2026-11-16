@@ -20,4 +20,6 @@ sh services/gateway/scripts/copy-upstream-tokens.sh
 
 Garmin과 게이트웨이의 자체 내부 토큰은 스크립트가 임의로 생성하며, **이미 있으면 덮어쓰지 않습니다**. 게이트웨이의 `garmin_token`은 새 토큰이 아니라 Garmin MCP의 `mcp_internal_token` 복사본이어야 합니다. InBody 토큰도 InBody MCP에서 현재 사용하는 값을 복사해야 합니다. 하위 서버 토큰을 교체했다면 복사 스크립트를 다시 실행하고 게이트웨이를 재시작합니다.
 
+Geo Route를 등록할 때도 같은 규칙을 적용합니다. Geo Route 서버가 사용하는 활성 토큰을 Gateway의 `secrets/geo_route_token`에 복사합니다. [NAS 적용 절차](06-geo-route-ui-nas.md)에 예시가 있습니다.
+
 현재 코드는 내부 토큰을 **파일에서 읽습니다**. `MCP_TOKEN_FILE`, `COLLECTOR_TOKEN_FILE`, `MCP_COLLECTOR_TOKEN_FILE`과 `gateway.yaml`의 `token_file`은 토큰 문자열이 아닌 **파일 경로**입니다. 여기에 토큰 값을 환경변수처럼 넣으면 동작하지 않습니다. 게이트웨이는 하위 서버마다 `X-MCP-Internal-Token` 헤더에 해당 토큰을 담아 보냅니다. `Authorization: Bearer`만 받는 서버는 현재 설정만으로 연결되지 않습니다. 파일은 mode `600`, 토큰 디렉터리는 mode `700`으로 유지하고 Git에 올리지 않습니다. 실제 마운트 경로는 루트 `docker-compose.yml`을 따릅니다.

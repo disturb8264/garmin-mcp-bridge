@@ -52,6 +52,8 @@ Compose의 `gateway`는 Garmin이 정상 상태가 된 뒤 시작합니다. 게�
 
 MCP App UI를 선언한 하위 도구는 `_meta.ui.resourceUri`의 리소스도 함께 공개합니다. 게이트웨이는 허용된 도구가 참조하는 리소스만 `resources/list`와 `resources/read`로 중계합니다. Geo Route를 연결할 때는 실제 `/mcp` URL과 활성 토큰을 `gateway.yaml`에 등록하고, 새 게이트웨이 이미지로 컨테이너를 재생성한 뒤 `geo_route_render_route`의 UI 메타데이터·리소스 목록·HTML 읽기를 확인합니다. ChatGPT 화면의 표시 여부는 연결 Refresh 후 새 대화에서 별도로 확인합니다.
 
+Geo Route의 이미지와 리소스를 함께 확인하는 명령과 NAS 적용 순서는 [06 Geo Route UI 적용·확인](06-geo-route-ui-nas.md)에 있습니다.
+
 ### 배치 방식 선택
 
 | 하위 MCP 위치 | 게이트웨이 네트워크 | `gateway.yaml` URL 예 |

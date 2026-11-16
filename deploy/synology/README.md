@@ -29,3 +29,5 @@ python -c 'import socket; print([(p, socket.socket().connect_ex(("127.0.0.1", p)
 다른 서버의 MCP를 사용하는 환경에서는 `gateway.yaml`에 해당 서버의 **HTTPS URL**을 권장합니다. 사설망 HTTP를 사용하는 경우에는 [05 외부 MCP 추가](../../docs/05-add-upstream-mcp.md)의 설정을 참고하세요. 게이트웨이를 브리지 모드로 실행해도 되며, 위 루프백 포트 검사는 적용되지 않습니다. 토큰 파일은 그 서버의 활성 토큰으로 준비합니다.
 
 게이트웨이 이미지 `0.4.1`부터 사설망 HTTP를 서버별로 허용할 수 있습니다. 이미지를 갱신할 때는 Docker 앱에서 새 태그를 내려받고 **컨테이너를 재생성**합니다. `gateway.yaml`이나 마운트된 토큰 파일만 바꿨다면 게이트웨이 컨테이너를 재시작합니다. 추가 서버가 등록되지 않으면 [05 외부 MCP 추가의 문제 해결](../../docs/05-add-upstream-mcp.md#문제-해결)을 확인하세요.
+
+Geo Route 이미지 뷰어에는 Gateway `0.4.2`의 UI 리소스 중계가 필요합니다. NAS에 Geo Route를 함께 배포하거나 Gateway에서 실제 접근 가능한 URL을 준비한 뒤 [06 Geo Route UI 적용·확인](../../docs/06-geo-route-ui-nas.md)의 순서대로 검증합니다. 개발 서버에서 `127.0.0.1`에만 게시한 Geo Route 포트는 NAS에서 직접 사용할 수 없습니다.
