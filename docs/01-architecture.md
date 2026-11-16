@@ -7,12 +7,12 @@ flowchart LR
     ChatGPT[ChatGPT] <-->|Secure MCP Tunnel| Gateway[Gateway 컨테이너]
     Gateway <-->|HTTP MCP · 내부 토큰| Garmin[Garmin 컨테이너]
     Gateway <-->|HTTP MCP · 내부 토큰| InBody[InBody MCP · 외부 서비스]
-    Gateway <-->|사설망 HTTP MCP · 내부 토큰| Echo[Echo MCP · 다른 서버 예시]
+    Gateway <-->|사설망 HTTP MCP · 내부 토큰| Echo[Echo MCP · 외부 서버]
     Garmin -->|활동 조회·수집| GarminConnect[Garmin Connect]
     Garmin <-->|저장·조회| DB[(PostgreSQL)]
 ```
 
-Garmin 컨테이너는 수집기와 MCP 서버를 실행하며 터널 클라이언트는 포함하지 않습니다. 게이트웨이 컨테이너가 하위 MCP의 도구 목록을 읽고 서버 ID를 접두사로 붙여 제공합니다(예: `garmin_`, `inbody_`, `echo_`). 터널 클라이언트도 이 컨테이너에서 실행합니다. Echo는 추가 가능한 외부 서버의 예시이며 Compose에는 포함되지 않습니다.
+Garmin 컨테이너는 수집기와 MCP 서버를 실행하며 터널 클라이언트는 포함하지 않습니다. 게이트웨이 컨테이너가 하위 MCP의 도구 목록을 읽고 서버 ID를 접두사로 붙여 제공합니다(예: `garmin_`, `inbody_`, `echo_`). 터널 클라이언트도 이 컨테이너에서 실행합니다. Echo는 NAS Gateway에 등록된 외부 서버이며 이 저장소의 Compose에는 포함되지 않습니다.
 
 Gateway `0.4.2`는 도구가 참조하는 MCP App UI 리소스도 중계합니다. Geo Route는 `gateway.yaml`에 별도로 등록해야 하며 루트 Compose에는 포함되지 않습니다. NAS 적용 순서는 [06 Geo Route UI 적용·확인](06-geo-route-ui-nas.md)을 참고하세요.
 
